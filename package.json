@@ -1,0 +1,19 @@
+{
+  "name": "facebook-news-pipeline",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Automated multi-country Facebook news curation pipeline",
+  "scripts": {
+    "pipeline": "node src/pipeline.js",
+    "test:rss": "node src/test/rss.js",
+    "test:newsapi": "node src/test/newsapi.js",
+    "test:claude": "node src/test/claude.js"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@supabase/supabase-js": "^2.49.0",
+    "axios": "^1.8.0",
+    "dotenv": "^16.4.0",
+    "rss-parser": "^3.13.0"
+  }
+}

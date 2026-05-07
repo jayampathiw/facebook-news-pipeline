@@ -1,0 +1,38 @@
+name: Fetch News Pipeline
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'   # every 30 minutes
+  workflow_dispatch:           # manual trigger from GitHub Actions UI
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run pipeline
+        run: node src/pipeline.js
+        env:
+          SUPABASE_URL:       ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:       ${{ secrets.SUPABASE_KEY }}
+          NEWSAPI_KEY:        ${{ secrets.NEWSAPI_KEY }}
+          ANTHROPIC_KEY:      ${{ secrets.ANTHROPIC_KEY }}
+          FB_PAGE_ID_FR:      ${{ secrets.FB_PAGE_ID_FR }}
+          FB_ACCESS_TOKEN_FR: ${{ secrets.FB_ACCESS_TOKEN_FR }}
+          FB_PAGE_ID_IT:      ${{ secrets.FB_PAGE_ID_IT }}
+          FB_ACCESS_TOKEN_IT: ${{ secrets.FB_ACCESS_TOKEN_IT }}
+
+      - name: Log completion
+        run: echo "Pipeline completed at $(date -u)"
