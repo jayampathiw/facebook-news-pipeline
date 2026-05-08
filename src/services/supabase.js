@@ -59,6 +59,25 @@ export async function getArticleById(id) {
   return data;
 }
 
+export async function deleteArticle(id) {
+  const supabase = getClient();
+  const { error } = await supabase.from('articles').delete().eq('id', id);
+  if (error) throw new Error(`DB delete error: ${error.message}`);
+}
+
+export async function deleteArticlesByCountry(country) {
+  const supabase = getClient();
+  const { error, count } = await supabase.from('articles').delete({ count: 'exact' }).eq('country', country);
+  if (error) throw new Error(`DB delete error: ${error.message}`);
+  return count ?? 0;
+}
+
+export async function truncateArticles() {
+  const supabase = getClient();
+  const { error } = await supabase.from('articles').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+  if (error) throw new Error(`DB truncate error: ${error.message}`);
+}
+
 export async function getRecentArticleTitles(country, daysBack = 3) {
   const supabase = getClient();
   const since = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000).toISOString();

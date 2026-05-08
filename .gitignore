@@ -3,3 +3,4 @@ node_modules/
 dist/
 dashboard/node_modules/
 dashboard/dist/
+supabase/.temp/
