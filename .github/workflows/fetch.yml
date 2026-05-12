@@ -2,7 +2,7 @@ name: Fetch News Pipeline
 
 on:
   schedule:
-    - cron: '*/30 * * * *'   # every 30 minutes
+    - cron: '0 * * * *'       # every hour
   workflow_dispatch:           # manual trigger from GitHub Actions UI
 
 jobs:
@@ -21,6 +21,15 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Check required secrets
+        run: |
+          if [ -z "$SUPABASE_URL" ]; then echo "ERROR: SUPABASE_URL secret not set"; exit 1; fi
+          if [ -z "$SUPABASE_KEY" ]; then echo "ERROR: SUPABASE_KEY secret not set"; exit 1; fi
+          echo "Required secrets present"
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
       - name: Run pipeline
         run: node src/pipeline.js

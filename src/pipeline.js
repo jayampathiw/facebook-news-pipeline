@@ -7,6 +7,14 @@ import { deduplicate, similarity } from './utils/dedup.js';
 import { validateArticle } from './validators/contentValidator.js';
 import { classifyArticle } from './utils/criticality.js';
 
+const REQUIRED_ENV = ['SUPABASE_URL', 'SUPABASE_KEY'];
+const missing = REQUIRED_ENV.filter(k => !process.env[k]);
+if (missing.length) {
+  console.error(`PIPELINE FAILED: Missing required environment variables: ${missing.join(', ')}`);
+  console.error('Set these as GitHub Actions Secrets under Settings → Secrets and variables → Actions');
+  process.exit(1);
+}
+
 process.on('unhandledRejection', (err) => {
   console.error('PIPELINE FAILED:', err);
   process.exit(1);
