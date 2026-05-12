@@ -1,518 +1,533 @@
-import { Component, OnInit, signal, ViewChild, AfterViewInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, computed } from '@angular/core';
 import { Router } from '@angular/router';
-import { FormBuilder, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { MatTableModule, MatTableDataSource } from '@angular/material/table';
-import { MatSortModule, MatSort } from '@angular/material/sort';
-import { MatPaginatorModule, MatPaginator } from '@angular/material/paginator';
-import { MatToolbarModule } from '@angular/material/toolbar';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatSelectModule } from '@angular/material/select';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { NgIf, NgClass, NgFor, DatePipe, TitleCasePipe } from '@angular/common';
-import { SelectionModel } from '@angular/cdk/collections';
+import { DatePipe } from '@angular/common';
 import { Article, ArticleStats, SupabaseService } from '../core/supabase.service';
-import { ArticleDetailDialogComponent } from './article-detail-dialog.component';
+import { ArticleDetailComponent } from './article-detail-dialog.component';
 
 const COUNTRIES = ['FR', 'IT', 'AU', 'SE'];
-const STATUSES = ['pending', 'approved', 'rejected', 'posted', 'failed'];
+const STATUSES  = ['pending', 'approved', 'rejected', 'posted', 'failed'];
 const CRITICALITIES = ['breaking', 'alert', 'trending', 'standard'];
+
+const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: 'Australia', SE: 'Sweden' };
 
 @Component({
   selector: 'app-article-list',
   standalone: true,
-  imports: [
-    NgIf, NgClass, NgFor, DatePipe, TitleCasePipe, ReactiveFormsModule,
-    MatTableModule, MatSortModule, MatPaginatorModule, MatToolbarModule,
-    MatButtonModule, MatIconModule, MatSelectModule, MatFormFieldModule,
-    MatInputModule, MatCheckboxModule, MatProgressSpinnerModule,
-    MatSnackBarModule, MatDialogModule, MatTooltipModule,
-  ],
+  imports: [DatePipe, ArticleDetailComponent],
   template: `
-    <!-- Top Toolbar -->
-    <mat-toolbar color="primary" class="main-toolbar">
-      <mat-icon class="toolbar-icon">newspaper</mat-icon>
-      <span class="toolbar-title">News Pipeline Dashboard</span>
-      <span class="spacer"></span>
-      <span class="user-email">{{ userEmail() }}</span>
-      <button mat-icon-button matTooltip="Sign out" (click)="signOut()">
-        <mat-icon>logout</mat-icon>
+    <!-- ── Navbar ── -->
+    <nav class="ink-navbar" style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:52px;">
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="sig sig-breaking" style="width:9px;height:9px;"></span>
+        <span style="font-family:'Playfair Display',serif;font-weight:900;font-size:18px;letter-spacing:.06em;color:var(--ink-text);">SIGNAL</span>
+        <span class="hidden sm:inline" style="font-size:10px;color:var(--ink-text-3);letter-spacing:.12em;text-transform:uppercase;">Console</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span class="hidden sm:inline" style="font-size:11px;color:var(--ink-text-3);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ userEmail() }}</span>
+        <button class="btn-theme" (click)="toggleTheme()" [title]="isDark() ? 'Switch to light mode' : 'Switch to dark mode'">
+          {{ isDark() ? '☀' : '🌙' }}
+        </button>
+        <button class="btn-ink" style="height:30px;font-size:12px;padding:0 12px;" (click)="signOut()">Sign out</button>
+      </div>
+    </nav>
+
+    <!-- ── Country strip ── -->
+    <div class="country-strip">
+      <button class="country-pill" [class.active]="filterCountry() === ''" (click)="setCountry('')">
+        🌍 <span>All</span>
       </button>
-    </mat-toolbar>
-
-    <div class="page-content">
-
-      <!-- Stats Row -->
-      <div class="stats-row" *ngIf="stats()">
-        <div class="stat-card stat-total" (click)="filterByStatus('')">
-          <div class="stat-value">{{ stats()!.total }}</div>
-          <div class="stat-label">Total</div>
-        </div>
-        <div class="stat-card stat-pending" (click)="filterByStatus('pending')">
-          <div class="stat-value">{{ stats()!.pending }}</div>
-          <div class="stat-label">Pending</div>
-        </div>
-        <div class="stat-card stat-approved" (click)="filterByStatus('approved')">
-          <div class="stat-value">{{ stats()!.approved }}</div>
-          <div class="stat-label">Approved</div>
-        </div>
-        <div class="stat-card stat-rejected" (click)="filterByStatus('rejected')">
-          <div class="stat-value">{{ stats()!.rejected }}</div>
-          <div class="stat-label">Rejected</div>
-        </div>
-        <div class="stat-card stat-posted" (click)="filterByStatus('posted')">
-          <div class="stat-value">{{ stats()!.posted }}</div>
-          <div class="stat-label">Posted</div>
-        </div>
-        <div class="stat-card stat-failed" (click)="filterByStatus('failed')">
-          <div class="stat-value">{{ stats()!.failed }}</div>
-          <div class="stat-label">Failed</div>
-        </div>
-      </div>
-
-      <!-- Filter Bar -->
-      <div class="filter-bar" [formGroup]="filters">
-        <mat-form-field appearance="outline" class="filter-field">
-          <mat-label>Country</mat-label>
-          <mat-select formControlName="country">
-            <mat-option value="">All Countries</mat-option>
-            <mat-option *ngFor="let c of countries" [value]="c">{{ c }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="filter-field">
-          <mat-label>Status</mat-label>
-          <mat-select formControlName="status">
-            <mat-option value="">All Statuses</mat-option>
-            <mat-option *ngFor="let s of statuses" [value]="s">{{ s | titlecase }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-
-        <mat-form-field appearance="outline" class="filter-field">
-          <mat-label>Criticality</mat-label>
-          <mat-select formControlName="criticality">
-            <mat-option value="">All Levels</mat-option>
-            <mat-option *ngFor="let c of criticalities" [value]="c">{{ c | titlecase }}</mat-option>
-          </mat-select>
-        </mat-form-field>
-
-        <button mat-stroked-button (click)="load()" matTooltip="Refresh data">
-          <mat-icon>refresh</mat-icon> Refresh
+      @for (c of countries; track c) {
+        <button [class]="countryPillClass(c)" (click)="setCountry(c)">
+          {{ countryFlag(c) }} <span>{{ countryName(c) }}</span>
         </button>
-      </div>
-
-      <!-- Batch Action Bar (shown when rows are selected) -->
-      <div class="batch-bar" *ngIf="selection.hasValue()">
-        <mat-icon>check_box</mat-icon>
-        <strong>{{ selection.selected.length }} selected</strong>
-        <button mat-raised-button color="primary" [disabled]="generating()" (click)="generateSelected()">
-          <mat-spinner *ngIf="generating()" diameter="16"></mat-spinner>
-          <mat-icon *ngIf="!generating()">auto_awesome</mat-icon>
-          {{ generating() ? 'Generating...' : 'Generate Captions' }}
-        </button>
-        <button mat-raised-button color="warn" (click)="deleteSelected()">
-          <mat-icon>delete_sweep</mat-icon> Delete Selected
-        </button>
-        <button mat-icon-button (click)="selection.clear()" matTooltip="Clear selection">
-          <mat-icon>close</mat-icon>
-        </button>
-      </div>
-
-      <!-- Loading Spinner -->
-      <div *ngIf="loading()" class="loading-overlay">
-        <mat-spinner diameter="48"></mat-spinner>
-        <p>Loading articles...</p>
-      </div>
-
-      <!-- Table -->
-      <div class="table-container" *ngIf="!loading()">
-        <table mat-table [dataSource]="dataSource" matSort matSortActive="created_at" matSortDirection="desc">
-
-          <!-- Checkbox Column -->
-          <ng-container matColumnDef="select">
-            <th mat-header-cell *matHeaderCellDef class="checkbox-col">
-              <mat-checkbox
-                (change)="$event ? toggleAllRows() : null"
-                [checked]="selection.hasValue() && isAllSelected()"
-                [indeterminate]="selection.hasValue() && !isAllSelected()"
-                matTooltip="Select all"
-              ></mat-checkbox>
-            </th>
-            <td mat-cell *matCellDef="let row" class="checkbox-col">
-              <mat-checkbox
-                (click)="$event.stopPropagation()"
-                (change)="$event ? selection.toggle(row) : null"
-                [checked]="selection.isSelected(row)"
-              ></mat-checkbox>
-            </td>
-          </ng-container>
-
-          <!-- Criticality Column (sorts by priority_score numerically) -->
-          <ng-container matColumnDef="criticality">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="after">Level</th>
-            <td mat-cell *matCellDef="let row">
-              <span class="crit-chip" [ngClass]="'crit-' + row.criticality">
-                {{ critIcon(row.criticality) }} {{ row.criticality | titlecase }}
-              </span>
-            </td>
-          </ng-container>
-
-          <!-- Title Column -->
-          <ng-container matColumnDef="title">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="after">Article</th>
-            <td mat-cell *matCellDef="let row" class="title-cell">
-              <div class="article-title" [matTooltip]="row.title">{{ row.title }}</div>
-              <div class="article-source">{{ row.source }}</div>
-            </td>
-          </ng-container>
-
-          <!-- Country Column -->
-          <ng-container matColumnDef="country">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="after">Country</th>
-            <td mat-cell *matCellDef="let row">
-              <span class="country-chip">{{ row.country }}</span>
-            </td>
-          </ng-container>
-
-          <!-- Status Column -->
-          <ng-container matColumnDef="status">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="after">Status</th>
-            <td mat-cell *matCellDef="let row">
-              <span class="status-chip" [ngClass]="'status-' + row.status">
-                {{ row.status | titlecase }}
-              </span>
-            </td>
-          </ng-container>
-
-          <!-- AI Content Column -->
-          <ng-container matColumnDef="has_ai">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="after">AI</th>
-            <td mat-cell *matCellDef="let row" class="ai-cell">
-              <mat-icon
-                [class]="row.ai_caption ? 'ai-yes' : 'ai-no'"
-                [matTooltip]="row.ai_caption ? 'Caption + SEO + Image ready' : 'No AI content yet'"
-              >
-                {{ row.ai_caption ? 'check_circle' : 'radio_button_unchecked' }}
-              </mat-icon>
-            </td>
-          </ng-container>
-
-          <!-- Inserted Date Column -->
-          <ng-container matColumnDef="created_at">
-            <th mat-header-cell *matHeaderCellDef mat-sort-header arrowPosition="after">Inserted</th>
-            <td mat-cell *matCellDef="let row" class="date-cell">
-              {{ row.created_at | date:'dd MMM yyyy HH:mm' }}
-            </td>
-          </ng-container>
-
-          <!-- Actions Column -->
-          <ng-container matColumnDef="actions">
-            <th mat-header-cell *matHeaderCellDef></th>
-            <td mat-cell *matCellDef="let row" class="actions-cell" (click)="$event.stopPropagation()">
-              <button mat-icon-button matTooltip="View / Review" (click)="openDetail(row)">
-                <mat-icon>visibility</mat-icon>
-              </button>
-              <button
-                mat-icon-button
-                matTooltip="Generate AI content"
-                [disabled]="generating()"
-                (click)="generateOne(row)"
-              >
-                <mat-icon>auto_awesome</mat-icon>
-              </button>
-              <button mat-icon-button matTooltip="Delete article" color="warn" (click)="deleteOne(row)">
-                <mat-icon>delete</mat-icon>
-              </button>
-            </td>
-          </ng-container>
-
-          <tr mat-header-row *matHeaderRowDef="displayedColumns; sticky: true"></tr>
-          <tr
-            mat-row
-            *matRowDef="let row; columns: displayedColumns;"
-            class="article-row"
-            [class.selected-row]="selection.isSelected(row)"
-            (click)="openDetail(row)"
-          ></tr>
-
-          <tr class="mat-row" *matNoDataRow>
-            <td class="mat-cell no-data" colspan="8">
-              <mat-icon>inbox</mat-icon>
-              <p>No articles match the selected filters.</p>
-            </td>
-          </tr>
-        </table>
-
-        <mat-paginator
-          [pageSizeOptions]="[25, 50, 100]"
-          [pageSize]="25"
-          showFirstLastButtons
-        ></mat-paginator>
-      </div>
-
+      }
     </div>
+
+    <!-- ── Country accent wrapper ── -->
+    <div [class]="countryAccentClass()" style="min-height:calc(100vh - 92px);">
+      <div style="max-width:900px;margin:0 auto;padding:16px 12px 64px;">
+
+        <!-- ── Stats row ── -->
+        @if (stats()) {
+          <div class="scrollbar-none" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:16px;">
+            <button class="stat-card" [class.active]="filterStatus() === ''" (click)="filterByStatus('')">
+              <div style="font-size:26px;font-weight:700;line-height:1;color:var(--ink-text);">{{ stats()!.total }}</div>
+              <div style="font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-text-2);margin-top:5px;">Total</div>
+            </button>
+            <button class="stat-card" [class.active]="filterStatus() === 'pending'" (click)="filterByStatus('pending')">
+              <div style="font-size:26px;font-weight:700;line-height:1;color:var(--ink-alert);">{{ stats()!.pending }}</div>
+              <div style="font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-text-2);margin-top:5px;">Pending</div>
+            </button>
+            <button class="stat-card" [class.active]="filterStatus() === 'approved'" (click)="filterByStatus('approved')">
+              <div style="font-size:26px;font-weight:700;line-height:1;color:var(--ink-standard);">{{ stats()!.approved }}</div>
+              <div style="font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-text-2);margin-top:5px;">Approved</div>
+            </button>
+            <button class="stat-card" [class.active]="filterStatus() === 'rejected'" (click)="filterByStatus('rejected')">
+              <div style="font-size:26px;font-weight:700;line-height:1;color:var(--ink-breaking);">{{ stats()!.rejected }}</div>
+              <div style="font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-text-2);margin-top:5px;">Rejected</div>
+            </button>
+            <button class="stat-card" [class.active]="filterStatus() === 'posted'" (click)="filterByStatus('posted')">
+              <div style="font-size:26px;font-weight:700;line-height:1;color:var(--ink-trending);">{{ stats()!.posted }}</div>
+              <div style="font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-text-2);margin-top:5px;">Posted</div>
+            </button>
+            <button class="stat-card" [class.active]="filterStatus() === 'failed'" (click)="filterByStatus('failed')">
+              <div style="font-size:26px;font-weight:700;line-height:1;color:var(--ink-text-2);">{{ stats()!.failed }}</div>
+              <div style="font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-text-2);margin-top:5px;">Failed</div>
+            </button>
+          </div>
+        }
+
+        <!-- ── Filter bar ── -->
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;align-items:center;">
+          <div style="position:relative;flex:1;min-width:160px;">
+            <svg style="position:absolute;left:10px;top:50%;transform:translateY(-50%);width:13px;height:13px;color:var(--ink-text-3);pointer-events:none;flex-shrink:0;" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd"/>
+            </svg>
+            <input type="text" class="ink-input" style="padding-left:32px;" placeholder="Search articles…"
+              [value]="filterSearch()" (input)="filterSearch.set($any($event.target).value); resetPage()" />
+          </div>
+          <select class="ink-select" style="min-width:110px;" [value]="filterStatus()" (change)="filterStatus.set($any($event.target).value); resetPage()">
+            <option value="">All Statuses</option>
+            @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
+          </select>
+          <select class="ink-select" style="min-width:105px;" [value]="filterCriticality()" (change)="filterCriticality.set($any($event.target).value); resetPage()">
+            <option value="">All Levels</option>
+            @for (c of criticalities; track c) { <option [value]="c">{{ c }}</option> }
+          </select>
+          <select class="ink-select" style="min-width:110px;" [value]="filterTag()" (change)="filterTag.set($any($event.target).value); resetPage()">
+            <option value="">All Tags</option>
+            <option value="top_pick">⭐ Top Pick</option>
+            <option value="breaking">🔴 Breaking</option>
+            <option value="alert">🟠 Alert</option>
+            <option value="patriotic">🏆 Patriotic</option>
+            <option value="social">👥 Social</option>
+            <option value="trending">📈 Trending</option>
+          </select>
+          <select class="ink-select" style="min-width:120px;" [value]="filterCategory()" (change)="filterCategory.set($any($event.target).value); resetPage()">
+            <option value="">All Categories</option>
+            <option value="Politique">Politique</option>
+            <option value="Société">Société</option>
+            <option value="Sport">Sport</option>
+            <option value="Culture">Culture</option>
+            <option value="International">International</option>
+            <option value="Santé">Santé</option>
+            <option value="Environnement">Environnement</option>
+          </select>
+          <button class="btn-ink" style="height:36px;gap:5px;flex-shrink:0;" (click)="load()">
+            <svg style="width:13px;height:13px;flex-shrink:0;" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
+            </svg>
+            <span class="hidden sm:inline">Refresh</span>
+          </button>
+        </div>
+
+        <!-- Sort + count row -->
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+          <span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-text-3);">Sort:</span>
+          <button
+            style="padding:3px 8px;border-radius:4px;cursor:pointer;border:none;font-size:11px;font-family:'Outfit',sans-serif;font-weight:500;transition:all .15s;"
+            [style.background]="sortField()==='priority_score' ? 'rgba(99,102,241,.15)' : 'transparent'"
+            [style.color]="sortField()==='priority_score' ? 'var(--ink-brand)' : 'var(--ink-text-2)'"
+            (click)="setSort('priority_score')"
+          >Level {{ sortIcon('priority_score') }}</button>
+          <button
+            style="padding:3px 8px;border-radius:4px;cursor:pointer;border:none;font-size:11px;font-family:'Outfit',sans-serif;font-weight:500;transition:all .15s;"
+            [style.background]="sortField()==='created_at' ? 'rgba(99,102,241,.15)' : 'transparent'"
+            [style.color]="sortField()==='created_at' ? 'var(--ink-brand)' : 'var(--ink-text-2)'"
+            (click)="setSort('created_at')"
+          >Date {{ sortIcon('created_at') }}</button>
+          <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--ink-text-3);">{{ totalItems() }} article{{ totalItems() !== 1 ? 's' : '' }}</span>
+          <button class="btn-brand" style="margin-left:auto;gap:5px;" [disabled]="selectingTop() || loading()" (click)="pickTopNews()">
+            @if (selectingTop()) { <span class="loading loading-spinner loading-xs"></span> }
+            @else { <span>⭐</span> }
+            Top News
+          </button>
+        </div>
+
+        <!-- ── Batch bar ── -->
+        @if (selectedIds().length > 0) {
+          <div class="batch-bar">
+            <span style="font-size:13px;font-weight:600;color:var(--ink-brand);">{{ selectedIds().length }} selected</span>
+            <button class="btn-brand" style="gap:5px;" [disabled]="generating()" (click)="generateSelected()">
+              @if (generating()) { <span class="loading loading-spinner loading-xs"></span> }
+              ✦ Generate
+            </button>
+            <button class="btn-approve" (click)="approveSelected()">Approve</button>
+            <button class="btn-brand" style="background:var(--ink-trending);" (click)="markSelectedPosted()">✓ Mark Posted</button>
+            <button class="btn-reject" (click)="deleteSelected()">Delete</button>
+            <button class="btn-ink" style="margin-left:auto;" (click)="selectedIds.set([])">✕ Clear</button>
+          </div>
+        }
+
+        <!-- ── Loading ── -->
+        @if (loading()) {
+          <div style="display:flex;flex-direction:column;align-items:center;gap:16px;padding:80px 20px;color:var(--ink-text-3);">
+            <span class="loading loading-spinner" style="color:var(--ink-brand);width:28px;height:28px;"></span>
+            <p style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;">Loading signals…</p>
+          </div>
+        }
+
+        <!-- ── Article list ── -->
+        @if (!loading()) {
+
+          @if (pagedArticles().length === 0) {
+            <div class="empty-state">
+              <div style="font-size:36px;letter-spacing:.2em;opacity:.3;">◎</div>
+              <p style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;">No signals match the current filters</p>
+            </div>
+          } @else {
+            <div>
+
+              <!-- Desktop column header -->
+              <div class="hidden sm:flex ink-surface" style="align-items:center;gap:12px;padding:8px 16px;background:var(--ink-raised);margin-bottom:8px;">
+                <div style="width:24px;flex-shrink:0;" (click)="$event.stopPropagation()">
+                  <input type="checkbox" class="checkbox checkbox-xs" [checked]="allPageSelected()" (change)="toggleAll()" />
+                </div>
+                <button style="width:90px;flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-text-3);text-align:left;background:none;border:none;cursor:pointer;padding:0;font-family:'Outfit',sans-serif;" (click)="setSort('priority_score')">
+                  Level {{ sortIcon('priority_score') }}
+                </button>
+                <span style="flex:1;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-text-3);">Article</span>
+                <button style="width:80px;flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-text-3);text-align:right;background:none;border:none;cursor:pointer;padding:0;font-family:'Outfit',sans-serif;" (click)="setSort('created_at')">
+                  Date {{ sortIcon('created_at') }}
+                </button>
+                <span style="width:56px;flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-text-3);text-align:right;">Act.</span>
+              </div>
+
+              <div style="display:flex;flex-direction:column;gap:6px;">
+                @for (article of pagedArticles(); track article.id) {
+                  <div
+                    class="article-row"
+                    [class.selected]="isSelected(article.id)"
+                    [style.border-left-color]="critColor(article.criticality)"
+                    (click)="openDetail(article)"
+                  >
+                    <!-- Checkbox -->
+                    <div style="flex-shrink:0;width:24px;padding-top:1px;" (click)="$event.stopPropagation()">
+                      <input type="checkbox" class="checkbox checkbox-sm" [checked]="isSelected(article.id)" (change)="toggleSelect(article.id)" />
+                    </div>
+
+                    <!-- Criticality col (desktop) -->
+                    <div class="hidden sm:flex" style="flex-direction:column;gap:6px;width:90px;flex-shrink:0;padding-top:2px;">
+                      <div style="display:flex;align-items:center;gap:6px;">
+                        <span [class]="critSigClass(article.criticality)"></span>
+                        <span [class]="'ink-badge ' + critBadgeClass(article.criticality)">{{ article.criticality }}</span>
+                      </div>
+                      @if (article.ai_caption) {
+                        <span class="ink-badge ib-ai">AI ✓</span>
+                      }
+                    </div>
+
+                    <!-- Content -->
+                    <div style="flex:1;min-width:0;">
+                      <!-- Mobile badges -->
+                      <div class="flex sm:hidden" style="align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:4px;">
+                        <span [class]="'ink-badge ' + critBadgeClass(article.criticality)">{{ article.criticality }}</span>
+                        <span class="ink-badge" style="background:var(--ink-raised);color:var(--ink-text-2);">{{ countryFlag(article.country) }} {{ article.country }}</span>
+                        <span [class]="'ink-badge ' + statusBadgeClass(article.status)">{{ article.status }}</span>
+                      </div>
+                      <p style="font-size:13px;font-weight:500;line-height:1.45;color:var(--ink-text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{{ article.title }}</p>
+                      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:5px;font-size:11px;color:var(--ink-text-2);">
+                        <span>{{ article.source }}</span>
+                        <span style="color:var(--ink-text-3);">·</span>
+                        <span>{{ countryFlag(article.country) }} {{ article.country }}</span>
+                        <span class="hidden sm:inline" style="color:var(--ink-text-3);">·</span>
+                        <span [class]="'hidden sm:inline ink-badge ' + statusBadgeClass(article.status)">{{ article.status }}</span>
+                        <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-text-3);">{{ article.created_at | date:'dd MMM' }}</span>
+                      </div>
+                      @if ((article.tags?.length ?? 0) > 0) {
+                        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;">
+                          @for (tag of article.tags; track tag) {
+                            <span [class]="'ink-badge ' + tagBadgeClass(tag)">{{ tagLabel(tag) }}</span>
+                          }
+                        </div>
+                      }
+                    </div>
+
+                    <!-- Actions -->
+                    <div style="flex-shrink:0;display:flex;flex-direction:column;gap:4px;" (click)="$event.stopPropagation()">
+                      <button class="btn-ghost-icon" title="Generate AI content" [disabled]="generating()" (click)="generateOne(article)">✦</button>
+                      <button class="btn-ghost-icon danger" title="Delete" (click)="deleteOne(article)">✕</button>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+
+            <!-- Pagination -->
+            @if (totalItems() > pageSize) {
+              <div style="display:flex;align-items:center;justify-content:center;gap:16px;padding-top:16px;">
+                <button class="btn-ink" style="height:32px;padding:0 12px;font-size:12px;" [disabled]="currentPage() === 0" (click)="prevPage()">← Prev</button>
+                <span style="font-size:12px;font-family:'JetBrains Mono',monospace;color:var(--ink-text-2);">{{ pageStart() }}–{{ pageEnd() }} / {{ totalItems() }}</span>
+                <button class="btn-ink" style="height:32px;padding:0 12px;font-size:12px;" [disabled]="currentPage() >= totalPages() - 1" (click)="nextPage()">Next →</button>
+              </div>
+            }
+          }
+        }
+
+      </div>
+    </div>
+
+    <!-- ── Detail overlay ── -->
+    @if (selectedArticle()) {
+      <div style="position:fixed;inset:0;z-index:50;" class="animate-fade-in">
+        <div style="position:absolute;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);" (click)="selectedArticle.set(null)"></div>
+        <div class="detail-panel absolute bottom-0 left-0 right-0 rounded-t-xl
+                    sm:bottom-auto sm:top-0 sm:left-auto sm:right-0 sm:w-[480px] sm:h-full sm:rounded-none
+                    flex flex-col overflow-hidden z-10"
+             style="height:92vh;box-shadow:-8px 0 32px rgba(0,0,0,.5);">
+          <app-article-detail
+            [article]="selectedArticle()!"
+            (closePanel)="selectedArticle.set(null)"
+            (articleUpdated)="onArticleUpdated($event)"
+          ></app-article-detail>
+        </div>
+      </div>
+    }
+
+    <!-- ── Toast ── -->
+    @if (toast()) {
+      <div class="ink-toast">
+        <div [class]="'toast-msg ' + (toast()!.ok ? 'toast-ok' : 'toast-err')">
+          {{ toast()!.ok ? '✓' : '✗' }} {{ toast()!.msg }}
+        </div>
+      </div>
+    }
   `,
-  styles: [`
-    .main-toolbar { position: sticky; top: 0; z-index: 100; }
-    .toolbar-icon { margin-right: 8px; }
-    .toolbar-title { font-size: 1.1rem; font-weight: 600; }
-    .spacer { flex: 1; }
-    .user-email { font-size: 0.85rem; margin-right: 8px; opacity: 0.85; }
-
-    .page-content { padding: 16px; max-width: 1400px; margin: 0 auto; }
-
-    .stats-row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-    .stat-card {
-      flex: 1;
-      min-width: 80px;
-      background: white;
-      border-radius: 8px;
-      padding: 12px 16px;
-      text-align: center;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      border-top: 3px solid #e0e0e0;
-      cursor: pointer;
-      transition: transform 0.1s, box-shadow 0.1s;
-    }
-    .stat-card:hover { transform: translateY(-1px); box-shadow: 0 3px 8px rgba(0,0,0,0.15); }
-    .stat-total  { border-color: #607d8b; }
-    .stat-pending  { border-color: #f57c00; }
-    .stat-approved { border-color: #388e3c; }
-    .stat-rejected { border-color: #d32f2f; }
-    .stat-posted   { border-color: #1976d2; }
-    .stat-failed   { border-color: #7b1fa2; }
-    .stat-value { font-size: 1.8rem; font-weight: 700; color: #333; }
-    .stat-label { font-size: 0.72rem; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
-
-    .filter-bar {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      flex-wrap: wrap;
-      margin-bottom: 8px;
-    }
-    .filter-field { min-width: 160px; }
-
-    .batch-bar {
-      display: flex;
-      gap: 12px;
-      align-items: center;
-      background: #1565c0;
-      color: white;
-      padding: 10px 16px;
-      border-radius: 8px;
-      margin-bottom: 8px;
-      font-size: 0.9rem;
-    }
-    .batch-bar mat-icon { color: white; }
-
-    .loading-overlay {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 64px;
-      gap: 16px;
-      color: #666;
-    }
-
-    .table-container {
-      background: white;
-      border-radius: 8px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      overflow: hidden;
-    }
-    table { width: 100%; }
-
-    .checkbox-col { width: 48px; padding-right: 0; }
-
-    .crit-chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 12px;
-      white-space: nowrap;
-    }
-    .crit-breaking { background: #ffebee; color: #c62828; }
-    .crit-alert    { background: #fff3e0; color: #e65100; }
-    .crit-trending { background: #e3f2fd; color: #1565c0; }
-    .crit-standard { background: #f5f5f5; color: #616161; }
-
-    .status-chip {
-      font-size: 0.75rem;
-      font-weight: 600;
-      padding: 3px 10px;
-      border-radius: 12px;
-      white-space: nowrap;
-    }
-    .status-pending  { background: #fff3e0; color: #e65100; }
-    .status-approved { background: #e8f5e9; color: #2e7d32; }
-    .status-rejected { background: #ffebee; color: #c62828; }
-    .status-posted   { background: #e3f2fd; color: #1565c0; }
-    .status-failed   { background: #f3e5f5; color: #6a1b9a; }
-
-    .country-chip {
-      font-size: 0.75rem;
-      font-weight: 700;
-      background: #e0e0e0;
-      padding: 2px 8px;
-      border-radius: 4px;
-    }
-
-    .title-cell { max-width: 340px; }
-    .article-title {
-      font-size: 0.875rem;
-      font-weight: 500;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      max-width: 320px;
-    }
-    .article-source { font-size: 0.75rem; color: #888; margin-top: 2px; }
-
-    .date-cell { font-size: 0.8rem; color: #666; white-space: nowrap; }
-
-    .ai-yes { color: #388e3c; font-size: 20px !important; }
-    .ai-no  { color: #bdbdbd; font-size: 20px !important; }
-    .ai-cell { text-align: center; }
-
-    .actions-cell { white-space: nowrap; }
-    .actions-cell button { opacity: 0; transition: opacity 0.15s; }
-
-    .article-row { cursor: pointer; transition: background 0.1s; }
-    .article-row:hover { background: #f5f5f5; }
-    .article-row:hover .actions-cell button { opacity: 1; }
-    .selected-row { background: #e3f2fd !important; }
-
-    .no-data { text-align: center; padding: 48px; color: #999; }
-    .no-data mat-icon { font-size: 48px; width: 48px; height: 48px; display: block; margin: 0 auto 8px; }
-  `],
 })
-export class ArticleListComponent implements OnInit, AfterViewInit {
-  @ViewChild(MatSort) sort!: MatSort;
-  @ViewChild(MatPaginator) paginator!: MatPaginator;
+export class ArticleListComponent implements OnInit, OnDestroy {
+  private _allArticles = signal<Article[]>([]);
+  loading     = signal(true);
+  generating  = signal(false);
+  selectingTop = signal(false);
+  isDark      = signal(true);
+  stats       = signal<ArticleStats | null>(null);
+  userEmail   = signal('');
+  selectedArticle = signal<Article | null>(null);
+  toast       = signal<{ msg: string; ok: boolean } | null>(null);
 
-  displayedColumns = ['select', 'criticality', 'title', 'country', 'status', 'has_ai', 'created_at', 'actions'];
-  dataSource = new MatTableDataSource<Article>([]);
-  selection = new SelectionModel<Article>(true, []);
+  filterSearch      = signal('');
+  filterCountry     = signal('');
+  filterStatus      = signal('');
+  filterCriticality = signal('');
+  filterTag         = signal('');
+  filterCategory    = signal('');
+  sortField  = signal('created_at');
+  sortDir    = signal<'asc' | 'desc'>('desc');
+  currentPage = signal(0);
+  selectedIds = signal<string[]>([]);
 
-  loading = signal(true);
-  generating = signal(false);
-  stats = signal<ArticleStats | null>(null);
-  userEmail = signal('');
-
-  filters: FormGroup;
-  countries = COUNTRIES;
-  statuses = STATUSES;
+  readonly pageSize = 25;
+  countries    = COUNTRIES;
+  statuses     = STATUSES;
   criticalities = CRITICALITIES;
 
-  constructor(
-    private supabase: SupabaseService,
-    private router: Router,
-    private fb: FormBuilder,
-    private dialog: MatDialog,
-    private snackBar: MatSnackBar,
-  ) {
-    this.filters = this.fb.group({
-      country: [''],
-      status: [''],
-      criticality: [''],
+  filteredSorted = computed(() => {
+    let items = [...this._allArticles()];
+    const q = this.filterSearch().toLowerCase();
+    if (q) items = items.filter(a => a.title.toLowerCase().includes(q) || a.source.toLowerCase().includes(q));
+    const country = this.filterCountry();
+    const status  = this.filterStatus();
+    const crit    = this.filterCriticality();
+    if (country) items = items.filter(a => a.country === country);
+    if (status)  items = items.filter(a => a.status === status);
+    if (crit)    items = items.filter(a => a.criticality === crit);
+    const tag = this.filterTag();
+    if (tag) items = items.filter(a => a.tags?.includes(tag));
+    const category = this.filterCategory();
+    if (category) items = items.filter(a => a.story_category === category);
+
+    const field = this.sortField();
+    const dir = this.sortDir() === 'asc' ? 1 : -1;
+    items.sort((a, b) => {
+      const av = field === 'priority_score' ? (a as any)[field] : String((a as any)[field] ?? '');
+      const bv = field === 'priority_score' ? (b as any)[field] : String((b as any)[field] ?? '');
+      return av < bv ? -dir : av > bv ? dir : 0;
     });
-  }
+    return items;
+  });
+
+  totalItems  = computed(() => this.filteredSorted().length);
+  totalPages  = computed(() => Math.max(1, Math.ceil(this.totalItems() / this.pageSize)));
+  pageStart   = computed(() => this.currentPage() * this.pageSize + 1);
+  pageEnd     = computed(() => Math.min((this.currentPage() + 1) * this.pageSize, this.totalItems()));
+
+  pagedArticles = computed(() => {
+    const start = this.currentPage() * this.pageSize;
+    return this.filteredSorted().slice(start, start + this.pageSize);
+  });
+
+  allPageSelected = computed(() =>
+    this.pagedArticles().length > 0 &&
+    this.pagedArticles().every(a => this.selectedIds().includes(a.id))
+  );
+
+  private toastTimer: any;
+
+  constructor(private supabase: SupabaseService, private router: Router) {}
 
   ngOnInit() {
+    const theme = localStorage.getItem('theme') ?? 'dark';
+    this.isDark.set(theme === 'dark');
+    document.documentElement.setAttribute('data-theme', theme);
     this.supabase.user$.subscribe(user => this.userEmail.set(user?.email ?? ''));
-    this.filters.valueChanges.subscribe(() => this.load());
     this.load();
   }
 
-  ngAfterViewInit() {
-    this.dataSource.sort = this.sort;
-    this.dataSource.paginator = this.paginator;
+  ngOnDestroy() {
+    clearTimeout(this.toastTimer);
+  }
 
-    // Sort "Level" column by numeric priority_score, not alphabetically
-    this.dataSource.sortingDataAccessor = (article, sortHeaderId) => {
-      switch (sortHeaderId) {
-        case 'criticality': return article.priority_score;
-        case 'has_ai': return article.ai_caption ? 1 : 0;
-        case 'created_at': return article.created_at ?? '';
-        default: return (article as any)[sortHeaderId] ?? '';
-      }
-    };
+  toggleTheme() {
+    const next = this.isDark() ? 'light' : 'dark';
+    this.isDark.set(!this.isDark());
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+  }
+
+  setCountry(country: string) {
+    this.filterCountry.set(country);
+    this.resetPage();
+  }
+
+  countryAccentClass(): string {
+    const map: Record<string, string> = { FR: 'ca-fr', IT: 'ca-it', AU: 'ca-au', SE: 'ca-se' };
+    return map[this.filterCountry()] ?? '';
+  }
+
+  countryPillClass(country: string): string {
+    const base = `country-pill cp-${country.toLowerCase()}`;
+    return this.filterCountry() === country ? `${base} active` : base;
+  }
+
+  countryName(c: string): string {
+    return COUNTRY_NAMES[c] ?? c;
+  }
+
+  showToast(msg: string, ok = true) {
+    clearTimeout(this.toastTimer);
+    this.toast.set({ msg, ok });
+    this.toastTimer = setTimeout(() => this.toast.set(null), 3000);
   }
 
   async load() {
     this.loading.set(true);
-    this.selection.clear();
+    this.selectedIds.set([]);
     try {
-      const { country, status, criticality } = this.filters.value;
       const [articles, statsData] = await Promise.all([
-        this.supabase.getArticles({
-          country: country || undefined,
-          status: status || undefined,
-          criticality: criticality || undefined,
-          sortBy: 'created_at',
-          sortDir: 'desc',
-        }),
+        this.supabase.getArticles({ sortBy: 'created_at', sortDir: 'desc' }),
         this.supabase.getStats(),
       ]);
-      this.dataSource.data = articles;
+      this._allArticles.set(articles);
       this.stats.set(statsData);
+      this.currentPage.set(0);
     } catch (err: any) {
-      this.snackBar.open(`Load error: ${err.message}`, 'OK', { duration: 4000 });
+      this.showToast(`Load failed: ${err.message}`, false);
     } finally {
       this.loading.set(false);
     }
   }
 
-  filterByStatus(status: string) {
-    this.filters.patchValue({ status });
+  async pickTopNews() {
+    this.selectingTop.set(true);
+    try {
+      const result = await this.supabase.selectTopNews(this.filterCountry());
+      this.selectedIds.set(result.selected_ids);
+      if (result.selected_ids.length > 0) {
+        await this.load();
+        this.showToast(`${result.selected_ids.length} top articles selected`);
+        this.selectedIds.set(result.selected_ids);
+      } else {
+        this.showToast('No matching articles in the last 12 hours', false);
+      }
+    } catch (err: any) {
+      this.showToast(err.message, false);
+    } finally {
+      this.selectingTop.set(false);
+    }
   }
 
-  openDetail(article: Article) {
-    const ref = this.dialog.open(ArticleDetailDialogComponent, {
-      data: { article },
-      width: '720px',
-      maxWidth: '95vw',
-      maxHeight: '90vh',
-    });
-    ref.afterClosed().subscribe(result => {
-      if (result?.updated) this.load();
-    });
+  resetPage() { this.currentPage.set(0); }
+
+  filterByStatus(status: string) {
+    this.filterStatus.set(status);
+    this.resetPage();
+  }
+
+  setSort(field: string) {
+    if (this.sortField() === field) {
+      this.sortDir.set(this.sortDir() === 'asc' ? 'desc' : 'asc');
+    } else {
+      this.sortField.set(field);
+      this.sortDir.set('desc');
+    }
+    this.currentPage.set(0);
+  }
+
+  sortIcon(field: string): string {
+    if (this.sortField() !== field) return '↕';
+    return this.sortDir() === 'asc' ? '↑' : '↓';
+  }
+
+  prevPage() { if (this.currentPage() > 0) this.currentPage.update(p => p - 1); }
+  nextPage() { if (this.currentPage() < this.totalPages() - 1) this.currentPage.update(p => p + 1); }
+
+  isSelected(id: string): boolean { return this.selectedIds().includes(id); }
+
+  toggleSelect(id: string) {
+    const cur = this.selectedIds();
+    this.selectedIds.set(cur.includes(id) ? cur.filter(x => x !== id) : [...cur, id]);
+  }
+
+  toggleAll() {
+    const pageIds = this.pagedArticles().map(a => a.id);
+    if (this.allPageSelected()) {
+      this.selectedIds.set(this.selectedIds().filter(id => !pageIds.includes(id)));
+    } else {
+      this.selectedIds.set([...new Set([...this.selectedIds(), ...pageIds])]);
+    }
+  }
+
+  openDetail(article: Article) { this.selectedArticle.set(article); }
+
+  onArticleUpdated(updated: Article) {
+    this._allArticles.update(arr => arr.map(a => a.id === updated.id ? updated : a));
+    if (this.selectedArticle()?.id === updated.id) this.selectedArticle.set(updated);
+    this.supabase.getStats().then(s => this.stats.set(s)).catch(() => {});
   }
 
   async generateOne(article: Article) {
     this.generating.set(true);
     try {
       const result = await this.supabase.generateCaptions([article.id]);
-      this.snackBar.open(`Generated content for ${result.processed} article`, 'OK', { duration: 3000 });
-      this.load();
+      if (result.processed === 0) {
+        const errMsg = result.errors?.[0]?.error ?? 'Generation failed';
+        this.showToast(errMsg, false);
+      } else {
+        this.showToast('Content generated');
+        await this.load();
+      }
     } catch (err: any) {
-      this.snackBar.open(`Generation failed: ${err.message}`, 'Dismiss', { duration: 5000 });
+      this.showToast(err.message, false);
     } finally {
       this.generating.set(false);
     }
   }
 
   async generateSelected() {
-    const ids = this.selection.selected.map(a => a.id);
+    const ids = this.selectedIds();
     if (!ids.length) return;
     this.generating.set(true);
     try {
       const result = await this.supabase.generateCaptions(ids);
-      this.snackBar.open(`Generated ${result.processed} / ${ids.length} articles`, 'OK', { duration: 3000 });
-      this.load();
+      if (result.processed === 0) {
+        const errMsg = result.errors?.[0]?.error ?? 'Generation failed';
+        this.showToast(errMsg, false);
+      } else {
+        this.showToast(`Generated ${result.processed} / ${ids.length} articles`);
+        await this.load();
+      }
     } catch (err: any) {
-      this.snackBar.open(`Generation failed: ${err.message}`, 'Dismiss', { duration: 5000 });
+      this.showToast(err.message, false);
     } finally {
       this.generating.set(false);
     }
@@ -522,23 +537,47 @@ export class ArticleListComponent implements OnInit, AfterViewInit {
     if (!confirm(`Delete "${article.title}"?\n\nThis cannot be undone.`)) return;
     try {
       await this.supabase.deleteArticle(article.id);
-      this.snackBar.open('Article deleted', 'OK', { duration: 2000 });
-      this.load();
+      this.showToast('Article deleted');
+      await this.load();
     } catch (err: any) {
-      this.snackBar.open(`Delete failed: ${err.message}`, 'OK', { duration: 4000 });
+      this.showToast(err.message, false);
+    }
+  }
+
+  async approveSelected() {
+    const ids = this.selectedIds();
+    if (!ids.length) return;
+    try {
+      await this.supabase.updateArticlesStatus(ids, 'approved');
+      this.showToast(`${ids.length} article${ids.length !== 1 ? 's' : ''} approved`);
+      await this.load();
+    } catch (err: any) {
+      this.showToast(err.message, false);
+    }
+  }
+
+  async markSelectedPosted() {
+    const ids = this.selectedIds();
+    if (!ids.length) return;
+    try {
+      await this.supabase.updateArticlesStatus(ids, 'posted');
+      this.showToast(`${ids.length} article${ids.length !== 1 ? 's' : ''} marked as posted`);
+      await this.load();
+    } catch (err: any) {
+      this.showToast(err.message, false);
     }
   }
 
   async deleteSelected() {
-    const selected = this.selection.selected;
-    if (!selected.length) return;
-    if (!confirm(`Delete ${selected.length} selected articles?\n\nThis cannot be undone.`)) return;
+    const ids = this.selectedIds();
+    if (!ids.length) return;
+    if (!confirm(`Delete ${ids.length} articles?\n\nThis cannot be undone.`)) return;
     try {
-      await this.supabase.deleteArticles(selected.map(a => a.id));
-      this.snackBar.open(`Deleted ${selected.length} articles`, 'OK', { duration: 2000 });
-      this.load();
+      await this.supabase.deleteArticles(ids);
+      this.showToast(`Deleted ${ids.length} articles`);
+      await this.load();
     } catch (err: any) {
-      this.snackBar.open(`Delete failed: ${err.message}`, 'OK', { duration: 4000 });
+      this.showToast(err.message, false);
     }
   }
 
@@ -547,19 +586,33 @@ export class ArticleListComponent implements OnInit, AfterViewInit {
     this.router.navigate(['/login']);
   }
 
-  isAllSelected() {
-    return this.selection.selected.length === this.dataSource.data.length;
+  critColor(level: string): string {
+    return ({ breaking: '#ff3636', alert: '#ff8c00', trending: '#1e7aff', standard: '#00cc70' } as any)[level] ?? '#1a2440';
   }
 
-  toggleAllRows() {
-    if (this.isAllSelected()) {
-      this.selection.clear();
-    } else {
-      this.dataSource.data.forEach(row => this.selection.select(row));
-    }
+  critSigClass(level: string): string {
+    return `sig sig-${level || 'standard'}`;
   }
 
-  critIcon(level: string): string {
-    return { breaking: '🔴', alert: '🟠', trending: '🔵', standard: '⚪' }[level] ?? '⚪';
+  critBadgeClass(level: string): string {
+    return ({ breaking: 'ib-breaking', alert: 'ib-alert', trending: 'ib-trending', standard: 'ib-standard' } as any)[level] ?? '';
+  }
+
+  statusBadgeClass(status: string): string {
+    return ({ pending: 'ib-pending', approved: 'ib-approved', rejected: 'ib-rejected', posted: 'ib-posted', failed: 'ib-failed' } as any)[status] ?? '';
+  }
+
+  countryFlag(country: string): string {
+    return ({ FR: '🇫🇷', IT: '🇮🇹', AU: '🇦🇺', SE: '🇸🇪' } as any)[country] ?? '🌍';
+  }
+
+  tagBadgeClass(tag: string): string {
+    return ({ top_pick: 'ib-brand', breaking: 'ib-breaking', alert: 'ib-alert',
+              patriotic: 'ib-standard', social: 'ib-trending', trending: 'ib-ai' } as any)[tag] ?? '';
+  }
+
+  tagLabel(tag: string): string {
+    return ({ top_pick: '⭐ Top Pick', breaking: '🔴 Breaking', alert: '🟠 Alert',
+              patriotic: '🏆 Patriotic', social: '👥 Social', trending: '📈 Trending' } as any)[tag] ?? tag;
   }
 }

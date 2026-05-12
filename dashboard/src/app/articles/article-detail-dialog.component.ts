@@ -1,349 +1,328 @@
-import { Component, Inject, signal } from '@angular/core';
-import { MAT_DIALOG_DATA, MatDialogRef, MatDialogModule } from '@angular/material/dialog';
-import { MatTabsModule } from '@angular/material/tabs';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatDividerModule } from '@angular/material/divider';
-import { NgIf, NgClass, DatePipe, UpperCasePipe } from '@angular/common';
+import { Component, Input, Output, EventEmitter, signal, OnDestroy } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { Article, SupabaseService } from '../core/supabase.service';
 
-export interface DialogData {
-  article: Article;
-}
-
 @Component({
-  selector: 'app-article-detail-dialog',
+  selector: 'app-article-detail',
   standalone: true,
-  imports: [
-    NgIf, NgClass, DatePipe, UpperCasePipe,
-    MatDialogModule, MatTabsModule, MatButtonModule,
-    MatIconModule, MatProgressSpinnerModule, MatSnackBarModule,
-    MatTooltipModule, MatDividerModule,
-  ],
+  imports: [DatePipe],
   template: `
-    <div class="dialog-header" [ngClass]="'crit-' + article.criticality">
-      <div class="header-left">
-        <span class="crit-badge">{{ article.criticality | uppercase }}</span>
-        <span class="country-badge">{{ article.country }}</span>
+    <div style="display:flex;flex-direction:column;height:100%;background:var(--ink-surface);position:relative;">
+
+      <!-- ── Header ── -->
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 16px;flex-shrink:0;border-bottom:1px solid var(--ink-border);"
+           [style.background]="critBg(article.criticality)">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span [class]="critSigClass(article.criticality)"></span>
+          <span [class]="'ink-badge ' + critBadgeClass(article.criticality)">{{ article.criticality }}</span>
+          <span class="ink-badge" style="background:var(--ink-raised);color:var(--ink-text-2);">{{ article.country }}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span [class]="'ink-badge ' + statusBadgeClass(article.status)">{{ article.status }}</span>
+          <button class="btn-ghost-icon" (click)="closePanel.emit()">✕</button>
+        </div>
       </div>
-      <span class="status-badge" [ngClass]="'status-' + article.status">{{ article.status }}</span>
+
+      <!-- ── Title + meta ── -->
+      <div style="padding:12px 16px;border-bottom:1px solid var(--ink-border);flex-shrink:0;">
+        <h2 style="font-size:14px;font-weight:600;line-height:1.45;color:var(--ink-text);margin-bottom:6px;">{{ article.title }}</h2>
+        <div style="display:flex;align-items:center;gap:8px;font-size:11px;color:var(--ink-text-2);font-family:'JetBrains Mono',monospace;flex-wrap:wrap;">
+          <span>{{ article.source }}</span>
+          <span style="color:var(--ink-text-3);">·</span>
+          <span>{{ article.created_at | date:'dd MMM yyyy, HH:mm' }}</span>
+        </div>
+      </div>
+
+      <!-- ── Tabs ── -->
+      <div class="ink-tabs scrollbar-none" style="overflow-x:auto;">
+        @for (tab of tabs; track tab; let i = $index) {
+          <button [class]="'ink-tab ' + (activeTab() === i ? 'active' : '')" (click)="activeTab.set(i)">{{ tab }}</button>
+        }
+      </div>
+
+      <!-- ── Scrollable body ── -->
+      <div style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:16px;">
+
+        <!-- Overview -->
+        @if (activeTab() === 0) {
+          @if (article.summary) {
+            <div>
+              <p class="section-label">Summary</p>
+              <p style="font-size:13px;color:var(--ink-text);line-height:1.65;">{{ article.summary }}</p>
+            </div>
+            <div style="border-top:1px solid var(--ink-border);"></div>
+          }
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+            <div>
+              <p class="section-label">Priority Score</p>
+              <p style="font-size:28px;font-weight:700;color:var(--ink-brand);font-family:'JetBrains Mono',monospace;line-height:1;">{{ article.priority_score }}</p>
+            </div>
+            <div>
+              <p class="section-label">Published</p>
+              <p style="font-size:13px;color:var(--ink-text);font-family:'JetBrains Mono',monospace;">{{ article.published_at ? (article.published_at | date:'dd MMM yyyy') : '—' }}</p>
+            </div>
+          </div>
+          <div style="border-top:1px solid var(--ink-border);"></div>
+          <div>
+            <p class="section-label">Article ID</p>
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-text-2);background:var(--ink-raised);border:1px solid var(--ink-border);padding:4px 8px;border-radius:4px;word-break:break-all;flex:1;">{{ article.id }}</code>
+              <button class="btn-ink" style="height:28px;padding:0 10px;font-size:11px;flex-shrink:0;" (click)="copy(article.id)">Copy</button>
+            </div>
+          </div>
+          <div style="border-top:1px solid var(--ink-border);"></div>
+          <div>
+            <p class="section-label">Source URL</p>
+            <a [href]="article.url" target="_blank" rel="noopener"
+               style="font-size:13px;color:var(--ink-brand);text-decoration:none;display:inline-flex;align-items:center;gap:4px;">
+              Open article <span style="opacity:.6;">↗</span>
+            </a>
+          </div>
+        }
+
+        <!-- Caption -->
+        @if (activeTab() === 1) {
+          @if (article.ai_caption?.text) {
+            @if (article.story_category) {
+              <div style="display:flex;align-items:center;gap:6px;">
+                <span class="ink-badge ib-brand">{{ article.story_category }}</span>
+              </div>
+            }
+            <div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <p class="section-label" style="margin-bottom:0;">Facebook Caption</p>
+                <button class="btn-ink" style="height:26px;padding:0 10px;font-size:11px;" (click)="copy(article.ai_caption!.text)">Copy</button>
+              </div>
+              <div class="ink-content-block" style="white-space:pre-wrap;max-height:280px;overflow-y:auto;">{{ article.ai_caption!.text }}</div>
+            </div>
+            @if ((article.hashtags?.length ?? 0) > 0) {
+              <div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                  <p class="section-label" style="margin-bottom:0;">Hashtags</p>
+                  <button class="btn-ink" style="height:26px;padding:0 10px;font-size:11px;" (click)="copy(article.hashtags!.join(' '))">Copy all</button>
+                </div>
+                <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                  @for (tag of article.hashtags; track tag) {
+                    <span class="ink-badge ib-brand" style="cursor:pointer;" (click)="copy(tag)" title="Click to copy">{{ tag }}</span>
+                  }
+                </div>
+              </div>
+            }
+            @if (article.seed_comment) {
+              <div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px;">
+                  <div>
+                    <p class="section-label" style="margin-bottom:2px;">Seed Comment</p>
+                    <p style="font-size:10px;color:var(--ink-alert);letter-spacing:.04em;text-transform:uppercase;font-weight:600;">Post within 2 min of publishing</p>
+                  </div>
+                  <button class="btn-ink" style="height:26px;padding:0 10px;font-size:11px;" (click)="copy(article.seed_comment!)">Copy</button>
+                </div>
+                <div class="ink-content-block">{{ article.seed_comment }}</div>
+              </div>
+            }
+            <button class="btn-brand" style="width:100%;justify-content:center;" (click)="copyFullPost()">📋 Copy full post</button>
+          } @else {
+            <div class="empty-state">
+              <div style="font-size:32px;opacity:.2;">✦</div>
+              <p style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;">No caption yet — use Generate below</p>
+            </div>
+          }
+        }
+
+        <!-- SEO -->
+        @if (activeTab() === 2) {
+          @if (article.seo_title || article.seo_description) {
+            @if (article.story_category) {
+              <div style="display:flex;align-items:center;gap:6px;">
+                <p class="section-label" style="margin-bottom:0;">Category</p>
+                <span class="ink-badge ib-brand">{{ article.story_category }}</span>
+              </div>
+            }
+            <div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <p class="section-label" style="margin-bottom:0;">
+                  SEO Title
+                  <span [style.color]="(article.seo_title || '').length > 60 ? 'var(--ink-breaking)' : 'var(--ink-text-3)'"
+                        style="font-weight:400;text-transform:none;letter-spacing:normal;"> {{ (article.seo_title || '').length }}/60</span>
+                </p>
+                <button class="btn-ink" style="height:26px;padding:0 10px;font-size:11px;" (click)="copy(article.seo_title!)">Copy</button>
+              </div>
+              <div class="ink-content-block">{{ article.seo_title || '—' }}</div>
+            </div>
+            <div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <p class="section-label" style="margin-bottom:0;">
+                  SEO Description
+                  <span [style.color]="(article.seo_description || '').length > 160 ? 'var(--ink-breaking)' : 'var(--ink-text-3)'"
+                        style="font-weight:400;text-transform:none;letter-spacing:normal;"> {{ (article.seo_description || '').length }}/160</span>
+                </p>
+                <button class="btn-ink" style="height:26px;padding:0 10px;font-size:11px;" (click)="copy(article.seo_description!)">Copy</button>
+              </div>
+              <div class="ink-content-block">{{ article.seo_description || '—' }}</div>
+            </div>
+          } @else {
+            <div class="empty-state">
+              <div style="font-size:32px;opacity:.2;">◑</div>
+              <p style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;">No SEO content yet</p>
+            </div>
+          }
+        }
+
+        <!-- Image Prompt -->
+        @if (activeTab() === 3) {
+          @if (article.image_prompt) {
+            @if (article.image_headline) {
+              <div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                  <p class="section-label" style="margin-bottom:0;">
+                    Image Headline
+                    <span style="font-weight:400;text-transform:none;letter-spacing:normal;color:var(--ink-text-3);">(max 6 words)</span>
+                  </p>
+                  <button class="btn-ink" style="height:26px;padding:0 10px;font-size:11px;" (click)="copy(article.image_headline!)">Copy</button>
+                </div>
+                <div class="ink-content-block" style="font-size:15px;font-weight:700;color:var(--ink-text);letter-spacing:.02em;">{{ article.image_headline }}</div>
+              </div>
+            }
+            <div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <p class="section-label" style="margin-bottom:0;">Raw Prompt</p>
+                <button class="btn-ink" style="height:26px;padding:0 10px;font-size:11px;" (click)="copy(article.image_prompt!)">Copy</button>
+              </div>
+              <div class="ink-content-block" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-text-2);">{{ article.image_prompt }}</div>
+            </div>
+            <div>
+              <p class="section-label">
+                Formatted Prompt
+                <span style="font-weight:400;text-transform:none;letter-spacing:normal;color:var(--ink-text-3);">(Midjourney / DALL·E)</span>
+              </p>
+              <div class="ink-content-block" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-text-2);max-height:140px;overflow-y:auto;">{{ article.formatted_image_prompt }}</div>
+              <button class="btn-brand" style="width:100%;margin-top:8px;" (click)="copy(article.formatted_image_prompt!)">
+                📋 Copy formatted prompt
+              </button>
+            </div>
+          } @else {
+            <div class="empty-state">
+              <div style="font-size:32px;opacity:.2;">▦</div>
+              <p style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;">No image prompt yet</p>
+            </div>
+          }
+        }
+
+      </div>
+
+      <!-- ── Inline toast ── -->
+      @if (toast()) {
+        <div style="position:absolute;bottom:80px;left:50%;transform:translateX(-50%);z-index:10;pointer-events:none;">
+          <div [class]="'toast-msg ' + (toast()!.ok ? 'toast-ok' : 'toast-err')">
+            {{ toast()!.ok ? '✓' : '✗' }} {{ toast()!.msg }}
+          </div>
+        </div>
+      }
+
+      <!-- ── Action footer ── -->
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 16px;border-top:1px solid var(--ink-border);flex-shrink:0;flex-wrap:wrap;">
+        <button class="btn-ink" [disabled]="generating()" (click)="generate()">
+          @if (generating()) { <span class="loading loading-spinner loading-xs"></span> }
+          ✦ Generate
+        </button>
+        <div style="display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap;">
+          <button class="btn-reject" [disabled]="article.status === 'rejected'" (click)="setStatus('rejected')">Reject</button>
+          <button class="btn-approve" [disabled]="article.status === 'approved'" (click)="setStatus('approved')">Approve</button>
+          <button class="btn-brand" [disabled]="article.status === 'posted'" (click)="setStatus('posted')">✓ Mark Posted</button>
+          <button class="btn-ink" (click)="closePanel.emit()">Close</button>
+        </div>
+      </div>
+
     </div>
-
-    <h2 mat-dialog-title class="dialog-title">{{ article.title }}</h2>
-    <div class="dialog-meta">
-      <span class="meta-source">{{ article.source }}</span>
-      <span class="meta-date">{{ article.created_at | date:'dd MMM yyyy, HH:mm' }}</span>
-    </div>
-
-    <mat-dialog-content>
-      <mat-tab-group>
-
-        <!-- Tab 1: Overview -->
-        <mat-tab label="Overview">
-          <div class="tab-content">
-            <div class="field-block">
-              <div class="field-label">Summary</div>
-              <div class="field-value">{{ article.summary || '—' }}</div>
-            </div>
-            <mat-divider></mat-divider>
-            <div class="field-block">
-              <div class="field-label">Article ID</div>
-              <div class="id-row">
-                <code class="field-id">{{ article.id }}</code>
-                <button mat-icon-button matTooltip="Copy ID" (click)="copy(article.id)">
-                  <mat-icon>content_copy</mat-icon>
-                </button>
-              </div>
-            </div>
-            <mat-divider></mat-divider>
-            <div class="field-row">
-              <div class="field-block">
-                <div class="field-label">URL</div>
-                <a [href]="article.url" target="_blank" class="article-link">
-                  <mat-icon inline>open_in_new</mat-icon> Open article
-                </a>
-              </div>
-              <div class="field-block">
-                <div class="field-label">Published</div>
-                <div class="field-value">{{ article.published_at ? (article.published_at | date:'dd MMM yyyy') : '—' }}</div>
-              </div>
-              <div class="field-block">
-                <div class="field-label">Priority Score</div>
-                <div class="field-value score">{{ article.priority_score }}</div>
-              </div>
-            </div>
-          </div>
-        </mat-tab>
-
-        <!-- Tab 2: Caption -->
-        <mat-tab label="Caption">
-          <div class="tab-content">
-            <ng-container *ngIf="article.ai_caption; else noCaption">
-              <div class="field-block">
-                <div class="field-label">Intro</div>
-                <div class="field-value caption-text">{{ article.ai_caption.intro }}</div>
-                <button mat-icon-button matTooltip="Copy intro" (click)="copy(article.ai_caption!.intro)">
-                  <mat-icon>content_copy</mat-icon>
-                </button>
-              </div>
-              <mat-divider></mat-divider>
-              <div class="field-block">
-                <div class="field-label">Engagement Question</div>
-                <div class="field-value caption-text">{{ article.ai_caption.question }}</div>
-                <button mat-icon-button matTooltip="Copy question" (click)="copy(article.ai_caption!.question)">
-                  <mat-icon>content_copy</mat-icon>
-                </button>
-              </div>
-              <mat-divider></mat-divider>
-              <div class="field-block">
-                <div class="field-label">CTA</div>
-                <div class="field-value caption-text">{{ article.ai_caption.cta }}</div>
-                <button mat-icon-button matTooltip="Copy CTA" (click)="copy(article.ai_caption!.cta)">
-                  <mat-icon>content_copy</mat-icon>
-                </button>
-              </div>
-              <mat-divider></mat-divider>
-              <div class="field-block">
-                <div class="field-label">Full Post</div>
-                <button mat-stroked-button (click)="copyFullPost()">
-                  <mat-icon>content_copy</mat-icon> Copy full post
-                </button>
-              </div>
-            </ng-container>
-            <ng-template #noCaption>
-              <div class="empty-state">
-                <mat-icon>auto_awesome</mat-icon>
-                <p>No caption generated yet. Use the Generate button below.</p>
-              </div>
-            </ng-template>
-          </div>
-        </mat-tab>
-
-        <!-- Tab 3: SEO -->
-        <mat-tab label="SEO">
-          <div class="tab-content">
-            <ng-container *ngIf="article.seo_title || article.seo_description; else noSeo">
-              <div class="field-block">
-                <div class="field-label">SEO Title <span class="char-count">{{ (article.seo_title || '').length }}/60</span></div>
-                <div class="field-value">{{ article.seo_title || '—' }}</div>
-                <button mat-icon-button matTooltip="Copy SEO title" (click)="copy(article.seo_title!)">
-                  <mat-icon>content_copy</mat-icon>
-                </button>
-              </div>
-              <mat-divider></mat-divider>
-              <div class="field-block">
-                <div class="field-label">SEO Description <span class="char-count">{{ (article.seo_description || '').length }}/160</span></div>
-                <div class="field-value">{{ article.seo_description || '—' }}</div>
-                <button mat-icon-button matTooltip="Copy SEO description" (click)="copy(article.seo_description!)">
-                  <mat-icon>content_copy</mat-icon>
-                </button>
-              </div>
-            </ng-container>
-            <ng-template #noSeo>
-              <div class="empty-state">
-                <mat-icon>search</mat-icon>
-                <p>No SEO content generated yet.</p>
-              </div>
-            </ng-template>
-          </div>
-        </mat-tab>
-
-        <!-- Tab 4: Image Prompt -->
-        <mat-tab label="Image">
-          <div class="tab-content">
-            <ng-container *ngIf="article.image_prompt; else noImage">
-              <div class="field-block">
-                <div class="field-label">Raw Prompt</div>
-                <div class="field-value mono">{{ article.image_prompt }}</div>
-                <button mat-icon-button matTooltip="Copy raw prompt" (click)="copy(article.image_prompt!)">
-                  <mat-icon>content_copy</mat-icon>
-                </button>
-              </div>
-              <mat-divider></mat-divider>
-              <div class="field-block">
-                <div class="field-label">Formatted Prompt (Midjourney / DALL·E)</div>
-                <div class="field-value mono formatted-prompt">{{ article.formatted_image_prompt }}</div>
-                <button mat-raised-button color="accent" (click)="copy(article.formatted_image_prompt!)">
-                  <mat-icon>content_copy</mat-icon> Copy formatted prompt
-                </button>
-              </div>
-            </ng-container>
-            <ng-template #noImage>
-              <div class="empty-state">
-                <mat-icon>image</mat-icon>
-                <p>No image prompt generated yet.</p>
-              </div>
-            </ng-template>
-          </div>
-        </mat-tab>
-
-      </mat-tab-group>
-    </mat-dialog-content>
-
-    <mat-divider></mat-divider>
-
-    <mat-dialog-actions class="dialog-actions">
-      <div class="actions-left">
-        <button
-          mat-raised-button
-          color="primary"
-          [disabled]="generating()"
-          (click)="generate()"
-          matTooltip="Generate / regenerate all AI content"
-        >
-          <mat-spinner *ngIf="generating()" diameter="18"></mat-spinner>
-          <mat-icon *ngIf="!generating()">auto_awesome</mat-icon>
-          {{ generating() ? 'Generating...' : 'Generate' }}
-        </button>
-      </div>
-
-      <div class="actions-right">
-        <button
-          mat-stroked-button
-          color="warn"
-          [disabled]="article.status === 'rejected'"
-          (click)="setStatus('rejected')"
-        >
-          <mat-icon>thumb_down</mat-icon> Reject
-        </button>
-        <button
-          mat-raised-button
-          color="accent"
-          [disabled]="article.status === 'approved'"
-          (click)="setStatus('approved')"
-        >
-          <mat-icon>thumb_up</mat-icon> Approve
-        </button>
-        <button mat-button mat-dialog-close>Close</button>
-      </div>
-    </mat-dialog-actions>
   `,
-  styles: [`
-    .dialog-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 24px;
-      margin: 0 -24px;
-    }
-    .crit-breaking { background: #ffebee; }
-    .crit-alert { background: #fff3e0; }
-    .crit-trending { background: #e3f2fd; }
-    .crit-standard { background: #f5f5f5; }
-    .header-left { display: flex; gap: 8px; align-items: center; }
-    .crit-badge {
-      font-size: 0.7rem;
-      font-weight: 700;
-      padding: 2px 8px;
-      border-radius: 4px;
-      background: #333;
-      color: white;
-      letter-spacing: 1px;
-    }
-    .country-badge {
-      font-size: 0.75rem;
-      font-weight: 600;
-      background: #e0e0e0;
-      padding: 2px 8px;
-      border-radius: 4px;
-    }
-    .status-badge {
-      font-size: 0.75rem;
-      font-weight: 600;
-      padding: 3px 10px;
-      border-radius: 12px;
-      text-transform: uppercase;
-    }
-    .status-pending { background: #fff3e0; color: #e65100; }
-    .status-approved { background: #e8f5e9; color: #2e7d32; }
-    .status-rejected { background: #ffebee; color: #c62828; }
-    .status-posted { background: #e3f2fd; color: #1565c0; }
-    .status-failed { background: #f3e5f5; color: #6a1b9a; }
-    .dialog-title {
-      margin-bottom: 0;
-      font-size: 1.1rem;
-      line-height: 1.4;
-    }
-    .dialog-meta {
-      display: flex;
-      gap: 16px;
-      padding: 0 24px 8px;
-      font-size: 0.8rem;
-      color: #666;
-    }
-    .meta-source { font-weight: 600; }
-    .tab-content { padding: 16px 0; display: flex; flex-direction: column; gap: 12px; }
-    .field-block { display: flex; flex-direction: column; gap: 4px; }
-    .field-row { display: flex; gap: 24px; flex-wrap: wrap; }
-    .field-label { font-size: 0.75rem; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
-    .field-value { font-size: 0.9rem; color: #333; line-height: 1.5; }
-    .caption-text { white-space: pre-wrap; }
-    .mono { font-family: monospace; font-size: 0.8rem; white-space: pre-wrap; word-break: break-word; }
-    .formatted-prompt { background: #f5f5f5; padding: 12px; border-radius: 4px; max-height: 150px; overflow-y: auto; }
-    .score { font-size: 1.2rem; font-weight: 700; color: #1565c0; }
-    .char-count { font-weight: 400; color: #999; margin-left: 8px; }
-    .id-row { display: flex; align-items: center; gap: 4px; }
-    .field-id { font-family: monospace; font-size: 0.78rem; color: #555; background: #f5f5f5; padding: 3px 8px; border-radius: 4px; user-select: all; }
-    .article-link { display: flex; align-items: center; gap: 4px; color: #1565c0; font-size: 0.9rem; }
-    .empty-state { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 32px; color: #999; }
-    .empty-state mat-icon { font-size: 48px; width: 48px; height: 48px; }
-    .dialog-actions { display: flex; justify-content: space-between; padding: 8px 0; }
-    .actions-left { display: flex; gap: 8px; }
-    .actions-right { display: flex; gap: 8px; align-items: center; }
-    mat-spinner { display: inline-block; }
-  `],
+  styles: [`:host { display: flex; flex-direction: column; height: 100%; }`],
 })
-export class ArticleDetailDialogComponent {
-  article: Article;
-  generating = signal(false);
+export class ArticleDetailComponent implements OnDestroy {
+  @Input() article!: Article;
+  @Output() closePanel = new EventEmitter<void>();
+  @Output() articleUpdated = new EventEmitter<Article>();
 
-  constructor(
-    @Inject(MAT_DIALOG_DATA) data: DialogData,
-    private dialogRef: MatDialogRef<ArticleDetailDialogComponent>,
-    private supabase: SupabaseService,
-    private snackBar: MatSnackBar,
-  ) {
-    this.article = { ...data.article };
+  tabs = ['Overview', 'Caption', 'SEO', 'Image'];
+  activeTab = signal(0);
+  generating = signal(false);
+  toast = signal<{ msg: string; ok: boolean } | null>(null);
+  private toastTimer: any;
+
+  constructor(private supabase: SupabaseService) {}
+
+  ngOnDestroy() {
+    clearTimeout(this.toastTimer);
   }
 
-  async setStatus(status: 'approved' | 'rejected') {
+  critBg(level: string): string {
+    const bgs: Record<string, string> = {
+      breaking: 'linear-gradient(135deg, rgba(255,54,54,.14) 0%, rgba(255,54,54,.04) 100%)',
+      alert:    'linear-gradient(135deg, rgba(255,140,0,.13)  0%, rgba(255,140,0,.03)  100%)',
+      trending: 'linear-gradient(135deg, rgba(30,122,255,.12) 0%, rgba(30,122,255,.03) 100%)',
+      standard: 'linear-gradient(135deg, rgba(0,204,112,.12)  0%, rgba(0,204,112,.03)  100%)',
+    };
+    return bgs[level] ?? 'transparent';
+  }
+
+  critSigClass(level: string): string {
+    return `sig sig-${level || 'standard'}`;
+  }
+
+  critBadgeClass(level: string): string {
+    return ({ breaking: 'ib-breaking', alert: 'ib-alert', trending: 'ib-trending', standard: 'ib-standard' } as any)[level] ?? '';
+  }
+
+  statusBadgeClass(status: string): string {
+    return ({ pending: 'ib-pending', approved: 'ib-approved', rejected: 'ib-rejected', posted: 'ib-posted', failed: 'ib-failed' } as any)[status] ?? '';
+  }
+
+  showToast(msg: string, ok = true) {
+    clearTimeout(this.toastTimer);
+    this.toast.set({ msg, ok });
+    this.toastTimer = setTimeout(() => this.toast.set(null), 2500);
+  }
+
+  async setStatus(status: Article['status']) {
     try {
       await this.supabase.updateArticleStatus(this.article.id, status);
       this.article = { ...this.article, status };
-      this.snackBar.open(`Article ${status}`, 'OK', { duration: 2000 });
-      this.dialogRef.close({ updated: true, article: this.article });
+      this.showToast(`Article ${status}`);
+      this.articleUpdated.emit(this.article);
     } catch (err: any) {
-      this.snackBar.open(`Error: ${err.message}`, 'OK', { duration: 3000 });
+      this.showToast(err.message, false);
     }
   }
 
   async generate() {
     this.generating.set(true);
     try {
-      await this.supabase.generateCaptions([this.article.id]);
-      const articles = await this.supabase.getArticles();
-      const updated = articles.find(a => a.id === this.article.id);
-      if (updated) this.article = updated;
-      this.snackBar.open('Content generated successfully', 'OK', { duration: 3000 });
+      const result = await this.supabase.generateCaptions([this.article.id]);
+      if (result.processed === 0) {
+        const errMsg = result.errors?.[0]?.error ?? 'Generation failed';
+        this.showToast(errMsg, false);
+      } else {
+        const articles = await this.supabase.getArticles();
+        const updated = articles.find(a => a.id === this.article.id);
+        if (updated) {
+          this.article = updated;
+          this.articleUpdated.emit(this.article);
+        }
+        this.showToast('Content generated');
+      }
     } catch (err: any) {
-      this.snackBar.open(`Generation failed: ${err.message}`, 'OK', { duration: 4000 });
+      this.showToast(err.message, false);
     } finally {
       this.generating.set(false);
     }
   }
 
   copy(text: string) {
-    navigator.clipboard.writeText(text).then(() => {
-      this.snackBar.open('Copied to clipboard', '', { duration: 1500 });
-    });
+    navigator.clipboard.writeText(text).then(() => this.showToast('Copied'));
   }
 
   copyFullPost() {
-    if (!this.article.ai_caption) return;
-    const { intro, question, cta } = this.article.ai_caption;
-    this.copy(`${intro}\n\n${question}\n\n${cta}`);
+    const text = this.article.ai_caption?.text;
+    if (!text) return;
+    this.copy(text);
   }
 }

@@ -27,13 +27,17 @@ for (const id of ids) {
     }
 
     const [caption, imageResult, seoContent] = await Promise.all([
-      generateCaption(article, config.captionLanguage, config.pageName),
+      generateCaption(article, config.captionLanguage, config.pageName, config.pageHashtag),
       generateImagePrompt(article),
       generateSEOContent(article, config.captionLanguage),
     ]);
 
     await updateArticle(id, {
-      ai_caption: { ...caption, image_headline: imageResult.imageHeadline },
+      ai_caption: { text: caption.caption },
+      hashtags: caption.hashtags ?? [],
+      seed_comment: caption.seed_comment ?? null,
+      story_category: caption.story_category ?? null,
+      image_headline: imageResult.imageHeadline,
       image_prompt: imageResult.prompt,
       formatted_image_prompt: formatImagePrompt(imageResult.prompt, imageResult.imageHeadline, config.watermarkFile),
       seo_title: seoContent.seo_title,
@@ -54,5 +58,6 @@ if (firstResult) {
   console.log('\nSample result:');
   console.log(`  seo_title: ${firstResult.seoContent.seo_title}`);
   console.log(`  image_headline: ${firstResult.imageResult.imageHeadline}`);
-  console.log(`  intro: ${firstResult.caption.intro?.slice(0, 100)}...`);
+  console.log(`  story_category: ${firstResult.caption.story_category}`);
+  console.log(`  caption preview: ${firstResult.caption.caption?.slice(0, 100)}...`);
 }

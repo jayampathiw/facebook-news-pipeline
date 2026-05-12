@@ -13,6 +13,7 @@ export const SOURCES = {
     captionLanguage: 'français',
     fbPageEnvKey: 'FR',
     pageName: "France Aujourd'hui",
+    pageHashtag: '#FranceAujourdhui',
     watermarkFile: 'FranceAujourdhui_Logo_v2.png',
   },
   IT: {
@@ -27,6 +28,7 @@ export const SOURCES = {
     captionLanguage: 'italiano',
     fbPageEnvKey: 'IT',
     pageName: 'Italia Oggi',
+    pageHashtag: '#ItaliaOggi',
     watermarkFile: 'ItaliaOggi_Logo.png',
   },
 

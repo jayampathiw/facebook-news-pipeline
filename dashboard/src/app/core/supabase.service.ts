@@ -15,11 +15,16 @@ export interface Article {
   priority_score: number;
   published_at: string | null;
   created_at: string;
-  ai_caption: { intro: string; question: string; cta: string } | null;
+  ai_caption: { text: string } | null;
   seo_title: string | null;
   seo_description: string | null;
   image_prompt: string | null;
   formatted_image_prompt: string | null;
+  image_headline: string | null;
+  seed_comment: string | null;
+  story_category: string | null;
+  tags?: string[];
+  hashtags?: string[];
 }
 
 export interface ArticleFilters {
@@ -114,7 +119,29 @@ export class SupabaseService {
     if (error) throw error;
   }
 
-  async generateCaptions(articleIds: string[]): Promise<{ processed: number; results: { id: string; seo_title: string }[] }> {
+  async updateArticlesStatus(ids: string[], status: Article['status']) {
+    const { error } = await this.client.from('articles').update({ status }).in('id', ids);
+    if (error) throw error;
+  }
+
+  async selectTopNews(country: string): Promise<{ selected_ids: string[] }> {
+    const session = await this.getSession();
+    const token = session?.access_token ?? environment.supabaseAnonKey;
+    const url = `${environment.supabaseUrl}/functions/v1/generate-caption`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'apikey': environment.supabaseAnonKey,
+      },
+      body: JSON.stringify({ action: 'select_top_news', ...(country ? { country } : {}) }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  }
+
+  async generateCaptions(articleIds: string[]): Promise<{ processed: number; results: { id: string; seo_title: string }[]; errors?: { id: string; error: string }[] }> {
     const session = await this.getSession();
     const token = session?.access_token ?? environment.supabaseAnonKey;
     const url = `${environment.supabaseUrl}/functions/v1/generate-caption`;

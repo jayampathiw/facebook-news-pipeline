@@ -1,124 +1,88 @@
-import { Component, signal } from '@angular/core';
+import { Component, OnInit, signal } from '@angular/core';
 import { FormBuilder, FormGroup, Validators, ReactiveFormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
-import { MatCardModule } from '@angular/material/card';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { MatInputModule } from '@angular/material/input';
-import { MatButtonModule } from '@angular/material/button';
-import { MatIconModule } from '@angular/material/icon';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { NgIf } from '@angular/common';
+import { Router } from '@angular/router';
 import { SupabaseService } from '../core/supabase.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [
-    ReactiveFormsModule,
-    NgIf,
-    MatCardModule,
-    MatFormFieldModule,
-    MatInputModule,
-    MatButtonModule,
-    MatIconModule,
-    MatProgressSpinnerModule,
-  ],
+  imports: [ReactiveFormsModule, NgIf],
   template: `
-    <div class="login-container">
-      <mat-card class="login-card">
-        <mat-card-header>
-          <mat-card-title>
-            <div class="login-title">
-              <mat-icon>newspaper</mat-icon>
-              <span>News Pipeline Dashboard</span>
-            </div>
-          </mat-card-title>
-          <mat-card-subtitle>Sign in to manage your articles</mat-card-subtitle>
-        </mat-card-header>
+    <div class="login-bg" style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;position:relative;overflow:hidden;">
 
-        <mat-card-content>
+      <!-- Decorative circles -->
+      <div style="position:absolute;inset:0;pointer-events:none;overflow:hidden;">
+        <div style="position:absolute;top:-240px;right:-120px;width:560px;height:560px;border:1px solid rgba(99,102,241,.08);border-radius:50%;"></div>
+        <div style="position:absolute;top:-100px;right:80px;width:320px;height:320px;border:1px solid rgba(99,102,241,.05);border-radius:50%;"></div>
+        <div style="position:absolute;bottom:-200px;left:-120px;width:480px;height:480px;border:1px solid rgba(30,122,255,.05);border-radius:50%;"></div>
+        <div style="position:absolute;bottom:100px;right:-80px;width:200px;height:200px;border:1px solid rgba(99,102,241,.06);border-radius:50%;"></div>
+      </div>
+
+      <div style="position:relative;z-index:1;width:100%;max-width:340px;">
+
+        <!-- Brand mark -->
+        <div style="text-align:center;margin-bottom:32px;">
+          <div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:8px;">
+            <span class="sig sig-breaking" style="width:10px;height:10px;"></span>
+            <span style="font-family:'Playfair Display',serif;font-weight:900;font-size:30px;letter-spacing:.06em;color:var(--ink-text);">SIGNAL</span>
+          </div>
+          <p style="font-size:11px;color:var(--ink-text-3);letter-spacing:.14em;text-transform:uppercase;">Editorial Console</p>
+        </div>
+
+        <!-- Form card -->
+        <div class="ink-surface" style="padding:24px;">
           <form [formGroup]="form" (ngSubmit)="submit()">
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Email</mat-label>
-              <input matInput type="email" formControlName="email" autocomplete="email" />
-              <mat-icon matSuffix>email</mat-icon>
-              <mat-error *ngIf="form.get('email')?.hasError('required')">Email is required</mat-error>
-              <mat-error *ngIf="form.get('email')?.hasError('email')">Enter a valid email</mat-error>
-            </mat-form-field>
 
-            <mat-form-field appearance="outline" class="full-width">
-              <mat-label>Password</mat-label>
-              <input matInput [type]="showPassword() ? 'text' : 'password'" formControlName="password" autocomplete="current-password" />
-              <button mat-icon-button matSuffix type="button" (click)="showPassword.set(!showPassword())">
-                <mat-icon>{{ showPassword() ? 'visibility_off' : 'visibility' }}</mat-icon>
-              </button>
-              <mat-error *ngIf="form.get('password')?.hasError('required')">Password is required</mat-error>
-            </mat-form-field>
-
-            <div *ngIf="error()" class="error-message">
-              <mat-icon>error_outline</mat-icon>
-              <span>{{ error() }}</span>
+            <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:16px;">
+              <label style="font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-text-2);">Email</label>
+              <input type="email" class="ink-input" formControlName="email" autocomplete="email" placeholder="you@newsroom.com" />
+              <span *ngIf="form.get('email')?.touched && form.get('email')?.invalid"
+                    style="font-size:11px;color:var(--ink-breaking);margin-top:2px;">Enter a valid email</span>
             </div>
 
-            <button
-              mat-raised-button
-              color="primary"
-              type="submit"
-              class="full-width submit-btn"
-              [disabled]="loading()"
-            >
-              <mat-spinner *ngIf="loading()" diameter="20"></mat-spinner>
-              <span *ngIf="!loading()">Sign In</span>
+            <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:20px;">
+              <label style="font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-text-2);">Password</label>
+              <div style="position:relative;">
+                <input [type]="showPwd() ? 'text' : 'password'" class="ink-input" style="padding-right:40px;"
+                       formControlName="password" autocomplete="current-password" placeholder="••••••••" />
+                <button type="button" class="btn-ghost-icon"
+                        style="position:absolute;right:4px;top:50%;transform:translateY(-50%);"
+                        (click)="showPwd.set(!showPwd())">{{ showPwd() ? '🙈' : '👁' }}</button>
+              </div>
+              <span *ngIf="form.get('password')?.touched && form.get('password')?.hasError('required')"
+                    style="font-size:11px;color:var(--ink-breaking);margin-top:2px;">Password required</span>
+            </div>
+
+            <div *ngIf="error()"
+                 style="background:rgba(255,54,54,.1);border:1px solid rgba(255,54,54,.2);border-radius:5px;padding:10px 12px;font-size:13px;color:var(--ink-breaking);margin-bottom:16px;">
+              {{ error() }}
+            </div>
+
+            <button type="submit" class="btn-brand" style="width:100%;height:42px;font-size:14px;" [disabled]="loading()">
+              @if (loading()) {
+                <span class="loading loading-spinner loading-sm"></span>
+                Authenticating…
+              } @else {
+                Sign in to Console
+              }
             </button>
+
           </form>
-        </mat-card-content>
-      </mat-card>
+        </div>
+
+        <p style="text-align:center;margin-top:20px;font-size:10px;color:var(--ink-text-3);letter-spacing:.1em;text-transform:uppercase;">
+          Signal · Facebook News Pipeline
+        </p>
+      </div>
     </div>
   `,
-  styles: [`
-    .login-container {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
-      padding: 16px;
-    }
-    .login-card {
-      width: 100%;
-      max-width: 420px;
-      padding: 8px;
-    }
-    .login-title {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 1.3rem;
-      font-weight: 600;
-    }
-    .full-width { width: 100%; }
-    mat-form-field { margin-top: 12px; }
-    .submit-btn {
-      margin-top: 16px;
-      height: 48px;
-      font-size: 1rem;
-    }
-    .error-message {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: #d32f2f;
-      margin-top: 8px;
-      font-size: 0.9rem;
-    }
-    mat-spinner { margin: auto; }
-  `],
 })
-export class LoginComponent {
+export class LoginComponent implements OnInit {
   form: FormGroup;
   loading = signal(false);
   error = signal('');
-  showPassword = signal(false);
+  showPwd = signal(false);
 
   constructor(
     private fb: FormBuilder,
@@ -131,14 +95,20 @@ export class LoginComponent {
     });
   }
 
+  ngOnInit() {
+    const theme = localStorage.getItem('theme') ?? 'dark';
+    document.documentElement.setAttribute('data-theme', theme);
+  }
+
   async submit() {
-    if (this.form.invalid) return;
+    if (this.form.invalid) {
+      this.form.markAllAsTouched();
+      return;
+    }
     this.loading.set(true);
     this.error.set('');
-
     const { email, password } = this.form.value;
     const { error } = await this.supabase.signIn(email, password);
-
     if (error) {
       this.error.set(error.message);
       this.loading.set(false);
