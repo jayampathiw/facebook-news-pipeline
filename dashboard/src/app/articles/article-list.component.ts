@@ -94,15 +94,6 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
             <option value="">All Levels</option>
             @for (c of criticalities; track c) { <option [value]="c">{{ c }}</option> }
           </select>
-          <select class="ink-select" style="min-width:110px;" [value]="filterTag()" (change)="filterTag.set($any($event.target).value); resetPage()">
-            <option value="">All Tags</option>
-            <option value="top_pick">⭐ Top Pick</option>
-            <option value="breaking">🔴 Breaking</option>
-            <option value="alert">🟠 Alert</option>
-            <option value="patriotic">🏆 Patriotic</option>
-            <option value="social">👥 Social</option>
-            <option value="trending">📈 Trending</option>
-          </select>
           <select class="ink-select" style="min-width:120px;" [value]="filterCategory()" (change)="filterCategory.set($any($event.target).value); resetPage()">
             <option value="">All Categories</option>
             <option value="Politique">Politique</option>
@@ -121,6 +112,17 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
           </button>
         </div>
 
+        <!-- ── Tag chips ── -->
+        <div style="display:flex;gap:5px;flex-wrap:wrap;align-items:center;margin-bottom:8px;">
+          <span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-text-3);flex-shrink:0;">Tags:</span>
+          @for (tag of availableTags; track tag.value) {
+            <button [class]="tagChipClass(tag.value)" (click)="toggleTagFilter(tag.value)">{{ tag.label }}</button>
+          }
+          @if (filterTags().length > 0) {
+            <button class="ink-badge" style="cursor:pointer;opacity:.55;" (click)="filterTags.set([]); resetPage()">✕ Clear</button>
+          }
+        </div>
+
         <!-- Sort + count row -->
         <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
           <span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-text-3);">Sort:</span>
@@ -137,7 +139,10 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
             (click)="setSort('created_at')"
           >Date {{ sortIcon('created_at') }}</button>
           <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--ink-text-3);">{{ totalItems() }} article{{ totalItems() !== 1 ? 's' : '' }}</span>
-          <button class="btn-brand" style="margin-left:auto;gap:5px;" [disabled]="selectingTop() || loading()" (click)="pickTopNews()">
+          <button class="btn-brand" style="margin-left:auto;gap:5px;"
+            [disabled]="selectingTop() || loading() || !filterCountry()"
+            [title]="!filterCountry() ? 'Select a country first' : 'Pick top articles for ' + filterCountry()"
+            (click)="pickTopNews()">
             @if (selectingTop()) { <span class="loading loading-spinner loading-xs"></span> }
             @else { <span>⭐</span> }
             Top News
@@ -309,7 +314,7 @@ export class ArticleListComponent implements OnInit, OnDestroy {
   filterCountry     = signal('');
   filterStatus      = signal('');
   filterCriticality = signal('');
-  filterTag         = signal('');
+  filterTags        = signal<string[]>([]);
   filterCategory    = signal('');
   sortField  = signal('created_at');
   sortDir    = signal<'asc' | 'desc'>('desc');
@@ -321,6 +326,16 @@ export class ArticleListComponent implements OnInit, OnDestroy {
   statuses     = STATUSES;
   criticalities = CRITICALITIES;
 
+  readonly availableTags = [
+    { value: 'top_pick_unposted', label: '⭐ Top Pick – Unposted' },
+    { value: 'top_pick',          label: '⭐ Top Pick' },
+    { value: 'breaking',          label: '🔴 Breaking' },
+    { value: 'alert',             label: '🟠 Alert' },
+    { value: 'patriotic',         label: '🏆 Patriotic' },
+    { value: 'social',            label: '👥 Social' },
+    { value: 'trending',          label: '📈 Trending' },
+  ];
+
   filteredSorted = computed(() => {
     let items = [...this._allArticles()];
     const q = this.filterSearch().toLowerCase();
@@ -331,8 +346,13 @@ export class ArticleListComponent implements OnInit, OnDestroy {
     if (country) items = items.filter(a => a.country === country);
     if (status)  items = items.filter(a => a.status === status);
     if (crit)    items = items.filter(a => a.criticality === crit);
-    const tag = this.filterTag();
-    if (tag) items = items.filter(a => a.tags?.includes(tag));
+    const tags = this.filterTags();
+    if (tags.length > 0) {
+      items = items.filter(a => tags.some(tag => {
+        if (tag === 'top_pick_unposted') return a.tags?.includes('top_pick') && a.status !== 'posted';
+        return a.tags?.includes(tag);
+      }));
+    }
     const category = this.filterCategory();
     if (category) items = items.filter(a => a.story_category === category);
 
@@ -447,6 +467,27 @@ export class ArticleListComponent implements OnInit, OnDestroy {
   }
 
   resetPage() { this.currentPage.set(0); }
+
+  toggleTagFilter(tag: string) {
+    const cur = this.filterTags();
+    this.filterTags.set(cur.includes(tag) ? cur.filter(t => t !== tag) : [...cur, tag]);
+    this.resetPage();
+  }
+
+  tagChipClass(tag: string): string {
+    const active = this.filterTags().includes(tag);
+    if (!active) return 'ink-badge tag-chip';
+    const cls: Record<string, string> = {
+      top_pick_unposted: 'ink-badge ib-brand tag-chip',
+      top_pick:          'ink-badge ib-brand tag-chip',
+      breaking:          'ink-badge ib-breaking tag-chip',
+      alert:             'ink-badge ib-alert tag-chip',
+      patriotic:         'ink-badge ib-standard tag-chip',
+      social:            'ink-badge ib-trending tag-chip',
+      trending:          'ink-badge ib-ai tag-chip',
+    };
+    return cls[tag] ?? 'ink-badge ib-brand tag-chip';
+  }
 
   filterByStatus(status: string) {
     this.filterStatus.set(status);

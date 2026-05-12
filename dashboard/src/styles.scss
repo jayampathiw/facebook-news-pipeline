@@ -82,6 +82,16 @@ body {
 .ib-posted   { background: rgba(30, 122, 255, .13);  color: var(--ink-trending); }
 .ib-failed   { background: rgba(255, 255, 255, .05); color: var(--ink-text-2); }
 .ib-ai       { background: rgba(99, 102, 241, .15);  color: var(--ink-brand); }
+.ib-brand    { background: rgba(99, 102, 241, .18);  color: var(--ink-brand); }
+
+.tag-chip {
+  cursor: pointer; border-radius: 20px; padding: 3px 10px; font-size: 11px;
+  border: 1px solid transparent; transition: all .15s; opacity: .55;
+  &:hover { opacity: .85; }
+  &.ib-breaking, &.ib-alert, &.ib-trending, &.ib-standard, &.ib-ai, &.ib-brand {
+    opacity: 1; border-color: currentColor;
+  }
+}
 
 /* ── Surfaces ──────────────────────────────────────────── */
 .ink-surface {

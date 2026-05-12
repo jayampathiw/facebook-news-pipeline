@@ -420,8 +420,8 @@ async function handleRequest(req: Request): Promise<Response> {
     const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
     let dbQuery = supabase
       .from('articles')
-      .select('id, title, summary, criticality, country, source')
-      .eq('status', 'pending')
+      .select('id, title, summary, criticality, country, source, tags, status')
+      .in('status', ['pending', 'approved'])
       .gte('created_at', twelveHoursAgo)
       .order('priority_score', { ascending: false })
       .limit(150);
@@ -432,7 +432,9 @@ async function handleRequest(req: Request): Promise<Response> {
       status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
-    const tagged = (rawArticles ?? [])
+    // Exclude articles already posted or already selected as top_pick in a previous run.
+    const eligible = (rawArticles ?? []).filter(a => a.status !== 'posted' && !a.tags?.includes('top_pick'));
+    const tagged = eligible
       .map(a => ({ ...a, tags: tagArticle(a) }))
       .filter(a => a.tags.length > 0);
 
