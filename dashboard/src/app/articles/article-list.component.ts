@@ -158,6 +158,10 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
               ✦ Generate
             </button>
             <button class="btn-approve" (click)="approveSelected()">Approve</button>
+            <button class="btn-brand" style="gap:5px;" [disabled]="posting()" (click)="batchPostToFacebook()">
+              @if (posting()) { <span class="loading loading-spinner loading-xs"></span> }
+              📤 Post to Facebook
+            </button>
             <button class="btn-brand" style="background:var(--ink-trending);" (click)="markSelectedPosted()">✓ Mark Posted</button>
             <button class="btn-reject" (click)="deleteSelected()">Delete</button>
             <button class="btn-ink" style="margin-left:auto;" (click)="selectedIds.set([])">✕ Clear</button>
@@ -303,6 +307,7 @@ export class ArticleListComponent implements OnInit, OnDestroy {
   private _allArticles = signal<Article[]>([]);
   loading     = signal(true);
   generating  = signal(false);
+  posting     = signal(false);
   selectingTop = signal(false);
   isDark      = signal(true);
   stats       = signal<ArticleStats | null>(null);
@@ -594,6 +599,34 @@ export class ArticleListComponent implements OnInit, OnDestroy {
       await this.load();
     } catch (err: any) {
       this.showToast(err.message, false);
+    }
+  }
+
+  async batchPostToFacebook() {
+    const ids = this.selectedIds().filter(id => {
+      const article = this._allArticles().find(a => a.id === id);
+      return article?.status === 'approved';
+    });
+    if (!ids.length) {
+      this.showToast('No approved articles selected', false);
+      return;
+    }
+    this.posting.set(true);
+    try {
+      const result = await this.supabase.postToFacebook(ids);
+      const succeeded = result.results.filter(r => r.success).length;
+      const failed = result.results.filter(r => !r.success).length;
+      if (succeeded > 0) {
+        this.showToast(`Posted ${succeeded} article${succeeded !== 1 ? 's' : ''} to Facebook${failed > 0 ? ` (${failed} failed)` : ''}`);
+        await this.load();
+      } else {
+        const firstErr = result.results[0]?.error ?? 'All posts failed';
+        this.showToast(firstErr, false);
+      }
+    } catch (err: any) {
+      this.showToast(err.message, false);
+    } finally {
+      this.posting.set(false);
     }
   }
 

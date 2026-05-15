@@ -78,6 +78,17 @@ import { Article, SupabaseService } from '../core/supabase.service';
               Open article <span style="opacity:.6;">↗</span>
             </a>
           </div>
+          @if (article.fb_post_id) {
+            <div style="border-top:1px solid var(--ink-border);"></div>
+            <div>
+              <p class="section-label">Facebook Post</p>
+              <a [href]="'https://www.facebook.com/' + article.fb_post_id" target="_blank" rel="noopener"
+                 style="font-size:13px;color:var(--ink-brand);text-decoration:none;display:inline-flex;align-items:center;gap:4px;">
+                View on Facebook <span style="opacity:.6;">↗</span>
+              </a>
+              <p style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-text-3);margin-top:4px;">{{ article.fb_post_id }}</p>
+            </div>
+          }
         }
 
         <!-- Caption -->
@@ -228,6 +239,14 @@ import { Article, SupabaseService } from '../core/supabase.service';
         <div style="display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap;">
           <button class="btn-reject" [disabled]="article.status === 'rejected'" (click)="setStatus('rejected')">Reject</button>
           <button class="btn-approve" [disabled]="article.status === 'approved'" (click)="setStatus('approved')">Approve</button>
+          <button class="btn-brand"
+                  [disabled]="article.status !== 'approved' || posting()"
+                  style="background:var(--ink-brand);"
+                  (click)="postToFacebook()">
+            @if (posting()) { <span class="loading loading-spinner loading-xs"></span> }
+            @else { <span>📤</span> }
+            Post to Facebook
+          </button>
           <button class="btn-brand" [disabled]="article.status === 'posted'" (click)="setStatus('posted')">✓ Mark Posted</button>
           <button class="btn-ink" (click)="closePanel.emit()">Close</button>
         </div>
@@ -245,6 +264,7 @@ export class ArticleDetailComponent implements OnDestroy {
   tabs = ['Overview', 'Caption', 'SEO', 'Image'];
   activeTab = signal(0);
   generating = signal(false);
+  posting = signal(false);
   toast = signal<{ msg: string; ok: boolean } | null>(null);
   private toastTimer: any;
 
@@ -290,6 +310,25 @@ export class ArticleDetailComponent implements OnDestroy {
       this.articleUpdated.emit(this.article);
     } catch (err: any) {
       this.showToast(err.message, false);
+    }
+  }
+
+  async postToFacebook() {
+    this.posting.set(true);
+    try {
+      const result = await this.supabase.postToFacebook([this.article.id]);
+      const r = result.results[0];
+      if (r?.success) {
+        this.article = { ...this.article, status: 'posted', fb_post_id: r.fb_post_id ?? null };
+        this.articleUpdated.emit(this.article);
+        this.showToast('Posted to Facebook ✓');
+      } else {
+        this.showToast(r?.error ?? 'Post failed', false);
+      }
+    } catch (err: any) {
+      this.showToast(err.message, false);
+    } finally {
+      this.posting.set(false);
     }
   }
 

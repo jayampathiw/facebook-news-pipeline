@@ -16,6 +16,7 @@ export interface Article {
   published_at: string | null;
   created_at: string;
   ai_caption: { text: string } | null;
+  fb_post_id: string | null;
   seo_title: string | null;
   seo_description: string | null;
   image_prompt: string | null;
@@ -138,6 +139,24 @@ export class SupabaseService {
       body: JSON.stringify({ action: 'select_top_news', ...(country ? { country } : {}) }),
     });
     if (!res.ok) throw new Error(await res.text());
+    return res.json();
+  }
+
+  async postToFacebook(articleIds: string[]): Promise<{
+    results: { id: string; success: boolean; fb_post_id?: string; error?: string }[];
+  }> {
+    const session = await this.getSession();
+    const token = session?.access_token ?? environment.supabaseAnonKey;
+    const res = await fetch(`${environment.supabaseUrl}/functions/v1/post-to-facebook`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'apikey': environment.supabaseAnonKey,
+      },
+      body: JSON.stringify({ article_ids: articleIds }),
+    });
+    if (!res.ok) throw new Error(`Post to Facebook error: ${await res.text()}`);
     return res.json();
   }
 
