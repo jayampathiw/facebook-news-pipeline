@@ -4,3 +4,4 @@ dist/
 dashboard/node_modules/
 dashboard/dist/
 supabase/.temp/
+dashboard/supabase/
