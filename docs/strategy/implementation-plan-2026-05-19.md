@@ -13,6 +13,39 @@
 
 ---
 
+## Deployment log — 2026-05-20
+
+Changes made during the go-live session on 2026-05-20:
+
+**Completed:**
+- All 8 DB migrations (005–012) applied to production via Supabase SQL editor
+- Edge function `generate-caption` deployed to Supabase (script size 130.8kB)
+- All code committed and pushed to GitHub (`592798b`) — 47 files, 7,540 insertions
+- GitHub Actions crons now active: `fetch.yml` (hourly), `scrape-metrics.yml` (hourly +15min), `recompute-scores.yml` (hourly +30min)
+- `publish.yml` deployed but **manually disabled** — auto-posting off until FB credentials configured and user ready
+- All required GitHub Secrets configured (see `docs/setup/secrets-guide.md`)
+
+**RSS feed fixes (A.6 / A.7):**
+- Removed FR: 20 Minutes (Cloudfront 403 bot-block), Actu.fr (404)
+- Fixed IT: Il Messaggero URL `/rss` → `/rss/home.xml`
+- Fixed IT: Corriere Milano + Corriere Roma (subdomains 404) → replaced with `corriere.it/rss/homepage.xml`
+- Fixed IT: La Gazzetta del Mezzogiorno → FeedBurner URL from page source
+- `.gitignore` updated: added `supabase/supabase/`, `*:Zone.Identifier`, `New Text Document.txt`
+
+**Image generation (replaces Stability AI):**
+- Switched from single-provider (Stability AI) to multi-provider system
+- Providers: Cloudflare Workers AI (default, FLUX.1-schnell), Google AI Studio (Gemini 2.0 Flash), Pollinations.ai (free, no key)
+- Switch via `IMAGE_PROVIDER` GitHub Actions variable — no code change needed
+- All model names overridable via variables (`CF_IMAGE_MODEL`, `GOOGLE_IMAGE_MODEL`, `POLLINATIONS_MODEL`)
+- Secrets guide created: `docs/setup/secrets-guide.md`
+
+**Pending from go-live session:**
+- FB_PAGE_ID_FR, FB_ACCESS_TOKEN_FR, FB_PAGE_ID_IT, FB_ACCESS_TOKEN_IT — not yet added to GitHub Secrets
+- Caption smoke tests (B+C Step 5) — not yet run
+- Bulk regenerate pending queue (B+C Step 6) — not yet run
+
+---
+
 ## Phase 1 — Gap Evaluation Summary
 
 ### Every gap, every status, every owner
@@ -310,10 +343,10 @@ Execute in this exact order — each step unblocks the next.
 - [x] `supabase functions deploy generate-caption`
 
 **Step 3 — Smoke test B.1 (metrics scraper)**
-- [ ] Run `node src/scrapers/post-metrics.js` manually against a post that is ≥1h old; confirm a row appears in `post_metrics`.
+- [x] Ran `node src/scrapers/post-metrics.js` — returned "No posts within 8-day window" as expected (all historic posts have `fb_post_id=NULL` from the pre-fix era; scraper will collect data from first new post onwards)
 
 **Step 4 — Push to GitHub**
-- [ ] `git push` — activates `scrape-metrics.yml` cron automatically.
+- [x] `git push` — all three cron workflows active on main
 
 **Step 5 — Smoke test C.1+C.2 (tone + signals)**
 - [ ] Regenerate 5 sample articles per country: `node src/scripts/generate-caption.js <id1> <id2> <id3> <id4> <id5>`
@@ -332,14 +365,19 @@ Execute after the Phase B+C checklist is complete and all migrations 005–010 a
 - [x] Apply `supabase/migrations/011_pillar.sql`
 - [x] Apply `supabase/migrations/012_publish_score.sql`
 
-**Step 2 — Add STABILITY_KEY secret to GitHub**
-- [ ] Settings → Secrets and variables → Actions → New repository secret → `STABILITY_KEY` (Stability AI API key for AI image generation in publish-slot.js)
+**Step 2 — Configure image generation secrets and variables** *(replaces original STABILITY_KEY step)*
+- [x] Stability AI replaced with multi-provider system (Cloudflare / Google AI Studio / Pollinations) — see `docs/setup/secrets-guide.md`
+- [x] `IMAGE_PROVIDER=cloudflare` set as GitHub Actions variable
+- [x] `CF_ACCOUNT_ID`, `CF_API_TOKEN`, `GOOGLE_AI_KEY`, `POLLINATIONS_TOKEN` added as GitHub Secrets
+- [x] All other required secrets added: `SUPABASE_URL`, `SUPABASE_KEY`, `NEWSAPI_KEY`, `ANTHROPIC_KEY`, `ANTHROPIC_BASE_URL`, `ANTHROPIC_MODEL`
+- [ ] FB_PAGE_ID_FR, FB_ACCESS_TOKEN_FR, FB_PAGE_ID_IT, FB_ACCESS_TOKEN_IT — pending (need permanent page tokens)
 
 **Step 3 — Push to GitHub**
-- [ ] `git push` — activates `publish.yml` (every 15 min) and `recompute-scores.yml` (every hour) automatically.
+- [x] `git push` — `publish.yml` and `recompute-scores.yml` active on main
+- [x] `publish.yml` **manually disabled** via GitHub Actions UI (user preference — re-enable when ready for auto-posting)
 
 **Step 4 — Validate slot publisher**
-- [ ] Approve at least one article with a pillar set. Wait for the next 15-min cron fire near a slot window. Confirm article posts and `posted_at`/`fb_post_id` are written.
+- [ ] Re-enable `publish.yml` in GitHub Actions UI when ready. Approve at least one article with a pillar set. Wait for next 15-min cron near a slot window. Confirm article posts and `posted_at`/`fb_post_id` are written.
 
 **Step 5 — Validate E.1 window tracker**
 - [ ] Confirm `logBoostEligibleWindowStart()` fires on the first IT post with `boost_eligible=false`. Check GitHub Actions logs for the window-start message.
