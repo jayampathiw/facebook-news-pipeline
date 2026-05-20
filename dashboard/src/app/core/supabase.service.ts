@@ -15,7 +15,7 @@ export interface Article {
   priority_score: number;
   published_at: string | null;
   created_at: string;
-  ai_caption: { text: string } | null;
+  ai_caption: { intro: string; question: string; cta: string } | null;
   fb_post_id: string | null;
   seo_title: string | null;
   seo_description: string | null;
@@ -23,9 +23,47 @@ export interface Article {
   formatted_image_prompt: string | null;
   image_headline: string | null;
   seed_comment: string | null;
+  seed_comment_template_id: string | null;
   story_category: string | null;
+  boost_eligible: boolean;
+  content_signals: {
+    binary_frame?: boolean;
+    poll_fit_score?: number;
+    protagonist_named?: string | null;
+    best_format?: 'post' | 'carousel' | 'reel';
+    fr_it_stake_first_sentence?: boolean;
+    pillar_hint?: string | null;
+  } | null;
+  cluster_id: number | null;
+  cluster_size: number;
+  pillar: string | null;
+  publish_score: number | null;
   tags?: string[];
   hashtags?: string[];
+}
+
+export interface PostMetric {
+  id: number;
+  article_id: string;
+  fb_post_id: string;
+  snapshot_at: string;
+  interval_tag: '+1h' | '+24h' | '+7d';
+  impressions: number | null;
+  engaged_users: number | null;
+  reactions_total: number | null;
+  reactions_like: number | null;
+  reactions_love: number | null;
+  reactions_anger: number | null;
+  reactions_haha: number | null;
+  reactions_wow: number | null;
+  reactions_sad: number | null;
+  comments: number | null;
+  shares: number | null;
+  clicks: number | null;
+}
+
+export interface ArticleWithMetrics extends Article {
+  post_metrics: PostMetric[];
 }
 
 export interface ArticleFilters {
@@ -158,6 +196,18 @@ export class SupabaseService {
     });
     if (!res.ok) throw new Error(`Post to Facebook error: ${await res.text()}`);
     return res.json();
+  }
+
+  async getArticlesWithMetrics(limit = 50): Promise<ArticleWithMetrics[]> {
+    const { data, error } = await this.client
+      .from('articles')
+      .select('id, title, source, country, posted_at, fb_post_id, post_metrics(*)')
+      .eq('status', 'posted')
+      .not('fb_post_id', 'is', null)
+      .order('posted_at', { ascending: false })
+      .limit(limit);
+    if (error) throw error;
+    return (data ?? []).map(a => ({ ...a, post_metrics: a.post_metrics ?? [] })) as ArticleWithMetrics[];
   }
 
   async generateCaptions(articleIds: string[]): Promise<{ processed: number; results: { id: string; seo_title: string }[]; errors?: { id: string; error: string }[] }> {

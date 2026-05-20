@@ -2,8 +2,10 @@ import 'dotenv/config';
 import { SOURCES } from './config/sources.js';
 import { fetchRSSFeeds } from './fetchers/rss.js';
 import { fetchNewsAPI } from './fetchers/newsapi.js';
-import { saveArticles, getRecentArticleTitles } from './services/supabase.js';
-import { deduplicate, similarity } from './utils/dedup.js';
+import { saveArticles, getRecentArticleTitles, getRecentArticlesForClustering, getPillarWeeklyCounts } from './services/supabase.js';
+import { computePublishScore } from './utils/publishScore.js';
+import { SLOTS } from './services/facebook.js';
+import { deduplicate, similarity, detectAndAnnotateClusters } from './utils/dedup.js';
 import { validateArticle } from './validators/contentValidator.js';
 import { classifyArticle } from './utils/criticality.js';
 
@@ -53,6 +55,7 @@ async function processCountry(country, config) {
         criticality,
         priority_score,
         ...(check.boostWarning && { boost_warning: true }),
+        ...(check.boostEligible === false && { boost_eligible: false }),
       });
     } else if (check.severity === 'absolute') {
       console.log(`  ⛔ Dropped (absolute): "${article.title}"`);
@@ -62,6 +65,20 @@ async function processCountry(country, config) {
       blocked.push({ ...article, status, blocked_reason: check.reason, criticality, priority_score });
       console.log(`  ⛔ ${status}: "${article.title}" — ${check.reason}`);
     }
+  }
+
+  // Cluster detection: group articles about the same story across new + recent DB
+  const recentForClustering = await getRecentArticlesForClustering(country);
+  detectAndAnnotateClusters(validated, recentForClustering);
+  const clustered = validated.filter(a => a.cluster_size >= 2);
+  if (clustered.length > 0) {
+    console.log(`  Clusters detected: ${clustered.length} articles in ${new Set(clustered.map(a => a.cluster_id)).size} cluster(s)`);
+  }
+
+  const weeklyPillarCounts = await getPillarWeeklyCounts(country);
+  for (const article of validated) {
+    article.pillar = article.content_signals?.pillar_hint ?? null;
+    article.publish_score = computePublishScore(article, weeklyPillarCounts, SLOTS[country] ?? []);
   }
 
   const saved = await saveArticles(validated);

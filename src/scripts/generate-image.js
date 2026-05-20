@@ -25,11 +25,12 @@ for (const id of ids) {
       continue;
     }
 
-    const imagePrompt = await generateImagePrompt(article);
-    const formatted = formatImagePrompt(imagePrompt, article.title, config.watermarkFile);
+    const imageResult = await generateImagePrompt(article, config.captionLanguage);
+    const formatted = formatImagePrompt(imageResult.prompt, imageResult.imageHeadline, config.watermarkFile);
 
     await updateArticle(id, {
-      image_prompt: imagePrompt,
+      image_prompt: imageResult.prompt,
+      image_headline: imageResult.imageHeadline,
       formatted_image_prompt: formatted,
     });
 

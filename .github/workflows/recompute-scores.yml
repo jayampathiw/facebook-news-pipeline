@@ -1,0 +1,22 @@
+name: Recompute Publish Scores
+
+on:
+  schedule:
+    - cron: '30 * * * *'   # every hour at :30
+  workflow_dispatch:
+
+jobs:
+  recompute:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Recompute publish scores
+        run: node src/scripts/recompute-scores.js
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}

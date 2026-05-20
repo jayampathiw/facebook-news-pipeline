@@ -1,7 +1,9 @@
 import 'dotenv/config';
-import { getPendingArticles, updateArticle } from '../services/supabase.js';
+import { getPendingArticles, updateArticle, getRecentSeedComments, getPillarWeeklyCounts } from '../services/supabase.js';
 import { generateCaption, generateImagePrompt, formatImagePrompt, generateSEOContent } from '../services/claude.js';
 import { SOURCES } from '../config/sources.js';
+import { computePublishScore } from '../utils/publishScore.js';
+import { SLOTS } from '../services/facebook.js';
 
 const countryArg = (() => {
   const idx = process.argv.indexOf('--country');
@@ -29,6 +31,8 @@ console.log(`Total: ${pending.length}\n`);
 
 let processed = 0;
 const errors = [];
+const recentSeedIdsByCountry = {};
+const weeklyPillarCountsByCountry = {};
 
 for (const article of pending) {
   const config = SOURCES[article.country];
@@ -38,24 +42,43 @@ for (const article of pending) {
   }
 
   try {
+    if (!recentSeedIdsByCountry[article.country]) {
+      recentSeedIdsByCountry[article.country] = await getRecentSeedComments(article.country);
+    }
+    if (!weeklyPillarCountsByCountry[article.country]) {
+      weeklyPillarCountsByCountry[article.country] = await getPillarWeeklyCounts(article.country);
+    }
+    const recentSeedIds = recentSeedIdsByCountry[article.country];
+
     const [caption, imageResult, seoContent] = await Promise.all([
-      generateCaption(article, config.captionLanguage, config.pageName, config.pageHashtag),
-      generateImagePrompt(article),
+      generateCaption(article, config.captionLanguage, config.pageName, config.pageHashtag, recentSeedIds),
+      generateImagePrompt(article, config.captionLanguage),
       generateSEOContent(article, config.captionLanguage),
     ]);
 
+    const pillar = caption.content_signals?.pillar_hint ?? null;
+    const updatedArticle = { ...article, pillar, content_signals: caption.content_signals ?? {} };
+    const publish_score = computePublishScore(updatedArticle, weeklyPillarCountsByCountry[article.country], SLOTS[article.country] ?? []);
+
     await updateArticle(article.id, {
-      ai_caption: { text: caption.caption },
+      ai_caption: { intro: caption.intro, question: caption.question, cta: caption.cta },
       hashtags: caption.hashtags ?? [],
       seed_comment: caption.seed_comment ?? null,
+      seed_comment_template_id: caption.seed_comment_template_id ?? null,
       story_category: caption.story_category ?? null,
+      content_signals: caption.content_signals ?? {},
       image_headline: imageResult.imageHeadline,
       image_prompt: imageResult.prompt,
       formatted_image_prompt: formatImagePrompt(imageResult.prompt, imageResult.imageHeadline, config.watermarkFile),
       seo_title: seoContent.seo_title,
       seo_description: seoContent.seo_description,
+      pillar,
+      publish_score,
     });
 
+    if (caption.seed_comment_template_id) {
+      recentSeedIdsByCountry[article.country].push(caption.seed_comment_template_id);
+    }
     processed++;
     console.log(`  ✓ [${article.country}] "${article.title.slice(0, 60)}"`);
   } catch (err) {

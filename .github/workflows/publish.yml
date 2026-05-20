@@ -1,0 +1,27 @@
+name: Slot Publisher
+
+on:
+  schedule:
+    - cron: '*/15 * * * *'   # every 15 minutes
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - name: Run slot publisher
+        run: node src/scripts/publish-slot.js
+        env:
+          SUPABASE_URL:       ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:       ${{ secrets.SUPABASE_KEY }}
+          FB_PAGE_ID_FR:      ${{ secrets.FB_PAGE_ID_FR }}
+          FB_ACCESS_TOKEN_FR: ${{ secrets.FB_ACCESS_TOKEN_FR }}
+          FB_PAGE_ID_IT:      ${{ secrets.FB_PAGE_ID_IT }}
+          FB_ACCESS_TOKEN_IT: ${{ secrets.FB_ACCESS_TOKEN_IT }}
+          STABILITY_KEY:      ${{ secrets.STABILITY_KEY }}

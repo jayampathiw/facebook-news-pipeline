@@ -2,6 +2,24 @@ import axios from 'axios';
 
 const FB_BASE = 'https://graph.facebook.com/v22.0';
 
+// Countries where boost_eligible=false articles must not be promoted (D3a decision, IT-first)
+export const BOOST_ELIGIBLE_ENFORCED = { IT: true, FR: false };
+
+// Posting time slots per country (local CEST time, ±15 min window)
+export const SLOTS = {
+  FR: ['07:30', '12:00', '19:00'],
+  IT: ['07:30', '11:30', '15:30', '19:30'],
+};
+
+// E.1 validation window: tracks when the first IT boost_eligible=false post fires.
+// Start date is logged here; the 30-day end date is computed externally.
+export function logBoostEligibleWindowStart(country, articleId, postedAt) {
+  if (country !== 'IT') return;
+  console.log(`[E.1 WINDOW] First IT boost_eligible=false post: article=${articleId} posted_at=${postedAt}`);
+  console.log(`[E.1 WINDOW] 30-day window closes: ${new Date(new Date(postedAt).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString()}`);
+  console.log(`[E.1 WINDOW] If zero policy strikes by that date → flip BOOST_ELIGIBLE_ENFORCED.FR to true in src/services/facebook.js`);
+}
+
 export async function postToFacebook(article, captionObj, country) {
   const pageId = process.env[`FB_PAGE_ID_${country}`];
   const token  = process.env[`FB_ACCESS_TOKEN_${country}`];

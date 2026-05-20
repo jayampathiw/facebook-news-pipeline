@@ -4,4 +4,7 @@ dist/
 dashboard/node_modules/
 dashboard/dist/
 supabase/.temp/
+supabase/supabase/
 dashboard/supabase/
+*:Zone.Identifier
+"New Text Document.txt"

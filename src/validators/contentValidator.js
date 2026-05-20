@@ -154,6 +154,9 @@ const WARNING_RULES = [
   },
 ];
 
+// Rules that mark IT articles as boost-ineligible instead of hard-blocking (D3a decision)
+const BOOST_INELIGIBLE_RULES = new Set(['ADS_POLITICS_01', 'ADS_WEAPONS_01', 'ADS_DRUGS_01']);
+
 // ─── COMBINATION ESCALATIONS ──────────────────────────────────────────────────
 // If both trigger IDs are hit in the same article, severity escalates to ABSOLUTE
 const COMBINATION_RULES = [
@@ -195,6 +198,10 @@ export function validateArticle(article) {
   for (const rule of WARNING_RULES) {
     if (hit(rule)) {
       triggeredIds.push(rule.id);
+      // IT-first: ad-boost rules mark as boost_ineligible instead of hard-blocking (D3a)
+      if (BOOST_INELIGIBLE_RULES.has(rule.id) && article.country === 'IT') {
+        return { valid: true, reason: `${rule.id}: ${rule.reason}`, boostEligible: false };
+      }
       if (!hasSafeHarbor) {
         return { valid: false, reason: `${rule.id}: ${rule.reason}`, severity: 'warning' };
       }

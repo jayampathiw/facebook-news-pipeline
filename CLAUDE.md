@@ -6,7 +6,7 @@ Automated multi-country Facebook news curation pipeline. Fetches articles from R
 
 **Active Facebook pages:**
 - France: [facebook.com/FranceAujourdhui](https://www.facebook.com/FranceAujourdhui)
-- Italy: (page to be created)
+- Italy: [facebook.com/ItaliaOggi](https://www.facebook.com/ItaliaOggi)
 
 **Target countries:** FR, IT (active), expanding to AU, SE, and more.
 

@@ -12,5 +12,10 @@ export const routes: Routes = [
     loadComponent: () => import('./articles/article-list.component').then(m => m.ArticleListComponent),
     canActivate: [authGuard],
   },
+  {
+    path: 'metrics',
+    loadComponent: () => import('./metrics/metrics.component').then(m => m.MetricsComponent),
+    canActivate: [authGuard],
+  },
   { path: '**', redirectTo: 'articles' },
 ];

@@ -1,5 +1,5 @@
 import { Component, OnInit, OnDestroy, signal, computed } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { Article, ArticleStats, SupabaseService } from '../core/supabase.service';
 import { ArticleDetailComponent } from './article-detail-dialog.component';
@@ -13,7 +13,7 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
 @Component({
   selector: 'app-article-list',
   standalone: true,
-  imports: [DatePipe, ArticleDetailComponent],
+  imports: [DatePipe, ArticleDetailComponent, RouterLink],
   template: `
     <!-- ── Navbar ── -->
     <nav class="ink-navbar" style="display:flex;align-items:center;justify-content:space-between;padding:0 16px;height:52px;">
@@ -21,6 +21,7 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
         <span class="sig sig-breaking" style="width:9px;height:9px;"></span>
         <span style="font-family:'Playfair Display',serif;font-weight:900;font-size:18px;letter-spacing:.06em;color:var(--ink-text);">SIGNAL</span>
         <span class="hidden sm:inline" style="font-size:10px;color:var(--ink-text-3);letter-spacing:.12em;text-transform:uppercase;">Console</span>
+        <a routerLink="/metrics" style="font-size:11px;font-weight:600;color:var(--ink-brand);text-decoration:none;padding:3px 8px;border-radius:4px;background:var(--ink-brand-glow);letter-spacing:.05em;">Metrics</a>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <span class="hidden sm:inline" style="font-size:11px;color:var(--ink-text-3);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ userEmail() }}</span>
@@ -248,6 +249,11 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
                           @for (tag of article.tags; track tag) {
                             <span [class]="'ink-badge ' + tagBadgeClass(tag)">{{ tagLabel(tag) }}</span>
                           }
+                        </div>
+                      }
+                      @if ((article.cluster_size ?? 1) >= 3) {
+                        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:4px;">
+                          <span class="ink-badge ib-alert" title="{{ article.cluster_size }} sources covering this story">🔗 ×{{ article.cluster_size }}</span>
                         </div>
                       }
                     </div>

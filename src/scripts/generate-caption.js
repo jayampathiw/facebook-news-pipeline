@@ -1,7 +1,9 @@
 import 'dotenv/config';
-import { getArticleById, updateArticle } from '../services/supabase.js';
+import { getArticleById, updateArticle, getRecentSeedComments, getPillarWeeklyCounts } from '../services/supabase.js';
 import { generateCaption, generateImagePrompt, formatImagePrompt, generateSEOContent } from '../services/claude.js';
 import { SOURCES } from '../config/sources.js';
+import { computePublishScore } from '../utils/publishScore.js';
+import { SLOTS } from '../services/facebook.js';
 
 const ids = process.argv.slice(2);
 if (ids.length === 0) {
@@ -26,22 +28,32 @@ for (const id of ids) {
       continue;
     }
 
+    const recentSeedIds = await getRecentSeedComments(article.country);
     const [caption, imageResult, seoContent] = await Promise.all([
-      generateCaption(article, config.captionLanguage, config.pageName, config.pageHashtag),
-      generateImagePrompt(article),
+      generateCaption(article, config.captionLanguage, config.pageName, config.pageHashtag, recentSeedIds),
+      generateImagePrompt(article, config.captionLanguage),
       generateSEOContent(article, config.captionLanguage),
     ]);
 
+    const pillar = caption.content_signals?.pillar_hint ?? null;
+    const weeklyPillarCounts = await getPillarWeeklyCounts(article.country);
+    const updatedArticle = { ...article, pillar, content_signals: caption.content_signals ?? {} };
+    const publish_score = computePublishScore(updatedArticle, weeklyPillarCounts, SLOTS[article.country] ?? []);
+
     await updateArticle(id, {
-      ai_caption: { text: caption.caption },
+      ai_caption: { intro: caption.intro, question: caption.question, cta: caption.cta },
       hashtags: caption.hashtags ?? [],
       seed_comment: caption.seed_comment ?? null,
+      seed_comment_template_id: caption.seed_comment_template_id ?? null,
       story_category: caption.story_category ?? null,
+      content_signals: caption.content_signals ?? {},
       image_headline: imageResult.imageHeadline,
       image_prompt: imageResult.prompt,
       formatted_image_prompt: formatImagePrompt(imageResult.prompt, imageResult.imageHeadline, config.watermarkFile),
       seo_title: seoContent.seo_title,
       seo_description: seoContent.seo_description,
+      pillar,
+      publish_score,
     });
 
     processed++;
@@ -59,5 +71,5 @@ if (firstResult) {
   console.log(`  seo_title: ${firstResult.seoContent.seo_title}`);
   console.log(`  image_headline: ${firstResult.imageResult.imageHeadline}`);
   console.log(`  story_category: ${firstResult.caption.story_category}`);
-  console.log(`  caption preview: ${firstResult.caption.caption?.slice(0, 100)}...`);
+  console.log(`  intro preview: ${firstResult.caption.intro?.slice(0, 100)}...`);
 }

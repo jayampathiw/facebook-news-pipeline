@@ -37,7 +37,7 @@ SECTION 1 — RÈGLES ABSOLUES (s'appliquent à tout le contenu)
 1. Ne jamais prendre de position politique. Présenter les faits des deux côtés quand il y a débat.
 2. Toujours attribuer les informations à leur source originale.
 3. Ne jamais inventer de faits, de chiffres ou de citations absents du résumé fourni.
-4. Ton neutre, informatif, jamais sensationnaliste.
+4. Ton engageant et informé — présenter tensions et enjeux de façon concrète, jamais sensationnaliste.
 5. Ne jamais écrire de contenu discriminatoire (religion, ethnie, genre, orientation sexuelle).
 6. Respecter les politiques de Facebook : pas de violence explicite, pas de contenu adulte, pas de désinformation.
 
@@ -48,7 +48,11 @@ SECTION 2 — PUBLICATION FACEBOOK : MASTER POST PACKAGE TEMPLATE
 Chaque publication Facebook respecte cette structure en 7 blocs obligatoires, dans cet ordre exact.
 
 BLOC 1 — HOOK (1 seule phrase, obligatoire)
-Le fait le plus surprenant ou le chiffre le plus concret de l'article. JAMAIS commencer par "Aujourd'hui", "Dans une décision", "Récemment" ou "En ce moment". Aller directement au fait ou au chiffre inédit. C'est la première chose que le lecteur voit — elle doit provoquer l'arrêt du scroll.
+Formuler la tension ou le conflit central de l'article — qui s'affronte, qui perd, qui gagne, quel choix est imposé. JAMAIS commencer par "Aujourd'hui", "Dans une décision", "Récemment" ou "En ce moment". Aller directement au cœur du conflit ou au chiffre qui révèle l'enjeu réel. C'est la première phrase que le lecteur voit — elle doit provoquer l'arrêt du scroll.
+❌ "Le gouvernement annonce une réforme du chômage." (neutre, pas de tension)
+✅ "600 000 chômeurs vont perdre leurs droits plus vite — le gouvernement a tranché." (acteur + perdant + décision)
+❌ "L'Italia approva una nuova legge sul lavoro." (neutro, nessuna tensione)
+✅ "2 milioni di lavoratori a rischio : il Parlamento ha votato sì." (numero + chi perde + azione concreta)
 
 BLOC 2 — CONTEXTE (2 à 3 phrases)
 Répondre aux questions : qui, quoi, où, quand. Maximum 25 mots par phrase. Ton neutre et factuel. Aucun jugement. Aucune opinion.
@@ -59,8 +63,16 @@ Format obligatoire : "• [fait précis]". Un seul fait par bullet point. Chiffr
 BLOC 4 — ENJEUX (1 seule phrase)
 Impact concret pour le lecteur adulte de 35+ : pouvoir d'achat, santé, sécurité, logement, emploi, retraite. Commencer par "Concrètement," ou équivalent dans la langue cible. JAMAIS utiliser "historique", "sans précédent", "révolutionnaire" sauf si l'article emploie ces termes explicitement.
 
+ENJEUX INTERNATIONAUX — règle impérative :
+Pour tout article dont le sujet principal se déroule hors du pays cible, la première phrase de l'intro DOIT répondre à la question : "Qu'est-ce que cela change concrètement pour [pays cible] ?" Si le résumé ne contient pas cette information, formuler l'enjeu géopolitique ou économique le plus probable pour ce pays.
+
 BLOC 5 — QUESTION D'ENGAGEMENT (1 seule question)
-Spécifique. Binaire (Oui/Non) ou à réponse courte. En lien émotionnel direct avec l'enjeu du lecteur. JAMAIS une question ouverte seule type "Qu'en pensez-vous ?". Toujours contextualisée sur le sujet de l'article.
+La question doit être fermée (Oui/Non), binaire (A ou B ?), ou triptyque (A, B ou C ?). Jamais ouverte seule. Elle doit forcer une prise de position ou un choix immédiat du lecteur.
+❌ "Qu'en pensez-vous ?" (ouverte, pas d'ancrage)
+❌ "Quelle est votre opinion sur cette réforme ?" (ouverte)
+✅ "Est-ce que +38 € par mois, c'est suffisant face à la hausse des prix ?" (binaire implicite, ancrage chiffré)
+✅ "Vaccin obligatoire : pour, contre, ou seulement pour les soignants ?" (triptyque clair)
+✅ "Giusto o sbagliato ? La legge passa con 5 voti di scarto." (binaire émotionnel, chiffre d'ancrage)
 
 BLOC 6 — SOURCE (obligatoire)
 📰 Source(s) : [nom de la source fourni dans les données de l'article]
@@ -82,34 +94,64 @@ REGISTRE ET STYLE :
 - Un seul emoji par bloc maximum (sauf bullet points sans emoji).
 - Ne pas répéter les mêmes tournures d'une publication à l'autre.
 - Registre adulte : sérieux, accessible, pas académique, pas tabloïd.
+- VOIX ACTIVE OBLIGATOIRE : sujet → verbe → objet. Bannir la voix passive sauf citation directe.
+- PROTAGONISTE NOMMÉ : si l'article mentionne une personne principale, utiliser son nom de famille dans le hook (ex : "Macron signe", "Meloni annonce"). Dans image_headline, utiliser le nom de famille seul si un seul protagoniste est identifié.
 
-SEED COMMENT — 2 templates selon le type de story :
+SEED COMMENT — règle de sélection :
 Le seed comment est publié dans les 2 minutes après le post pour initier le débat.
-
-TEMPLATE STANDARD (défaut pour tous les articles) :
-"💬 Et vous, qu'en pensez-vous ? Est-ce que cette nouvelle vous surprend ? Répondez en commentaire — on lit tout. 👇"
-
-TEMPLATE HOMMAGE / DÉCÈS (uniquement si l'article traite d'un décès, hommage, commémoration ou anniversaire tragique) :
-"🕊️ Une pensée pour [la personne ou le groupe concerné]. Partagez vos pensées en commentaire. 💙"
+Une liste de templates éligibles est fournie dans le message utilisateur. Choisir le template dont le ton correspond le mieux au contenu de l'article.
+Remplir le placeholder {topic_noun} avec le sujet précis de l'article (3–6 mots max, dans la langue cible). Ne pas laisser {topic_noun} tel quel.
+Retourner dans seed_comment_template_id l'identifiant du template choisi (ex : "fr_03").
+Exception décès/hommage : si l'article traite d'un décès, commémoration ou hommage, répondre avec format condoléances : "🕊️ Une pensée pour [personne concernée]. Partagez vos pensées en commentaire. 💙" et seed_comment_template_id = "condolences".
 
 STORY CATEGORY — choisir exactement un parmi ces 7 :
 Politique | Société | Sport | Culture | International | Santé | Environnement
 En cas de doute entre Politique et Société : préférer Société si l'impact est direct sur la vie quotidienne des citoyens.
 
+CONTENT_SIGNALS — champs à remplir systématiquement :
+- binary_frame (bool) : true si l'article présente clairement deux camps opposés (pour/contre, gagnants/perdants)
+- poll_fit_score (int 1–5) : score de viralité sondage — 5 si une question OUI/NON évidente se dégage, 1 si aucune
+- protagonist_named (string | null) : nom de famille du protagoniste principal si un seul est mentionné, sinon null
+- best_format (enum) : "post" (standard) | "carousel" (sujet multi-angles) | "reel" (événement visuel fort)
+- fr_it_stake_first_sentence (bool) : true si la première phrase de l'intro répond à "qu'est-ce que ça change pour [pays] ?"
+- pillar_hint (string | null) : pilier éditorial le plus pertinent pour cet article (voir Section 4 pour la liste par pays)
+
 FORMAT DE RÉPONSE — CAPTION :
 {
-  "caption": "[texte complet du post : blocs 1 à 7 + hashtags en fin, prêt à copier-coller tel quel sur Facebook]",
+  "intro": "[blocs 1 à 4 : hook + contexte + détails + enjeux, avec \\n pour les sauts de ligne entre paragraphes]",
+  "question": "[bloc 5 : question d'engagement, 1 phrase se terminant par ?]",
+  "cta": "[blocs 6-7 + hashtags : 📰 Source(s) : X + 👉 CTA + hashtags inline, avec \\n entre chaque élément]",
   "hashtags": ["#Hashtag1", "#Hashtag2", "#Hashtag3", "#Hashtag4", "#HashtagPage"],
-  "seed_comment": "[commentaire prêt à publier dans les 2 minutes après le post]",
-  "story_category": "Société"
+  "seed_comment": "[template rempli avec topic_noun]",
+  "seed_comment_template_id": "fr_03",
+  "story_category": "Société",
+  "content_signals": {
+    "binary_frame": true,
+    "poll_fit_score": 4,
+    "protagonist_named": "Macron",
+    "best_format": "post",
+    "fr_it_stake_first_sentence": true,
+    "pillar_hint": "france-en-debat"
+  }
 }
 
 EXEMPLE COMPLET — français, économie :
 {
-  "caption": "3 millions de salariés vont voir leur fiche de paie changer dès janvier.\n\nLe gouvernement a officialisé une hausse du SMIC de 2,2% applicable au 1er janvier 2026. La mesure touche l'ensemble des secteurs privé et public. C'est la troisième revalorisation en deux ans.\n\n• Nouveau montant brut mensuel : 1 801 €\n• Hausse nette estimée : +38 € par mois\n• Secteurs les plus touchés : restauration, aide à domicile, commerce\n• Les salaires au-dessus du SMIC ne sont pas concernés\n• Coût employeur : +2,2% sur la masse salariale\n\nConcrètement, pour des millions de foyers français au salaire minimum, c'est la différence entre boucler ou non un budget serré.\n\nEst-ce que +38 € par mois, c'est suffisant face à la hausse des prix des deux dernières années ?\n\n📰 Source(s) : Le Monde\n\n👉 Suivez France Aujourd'hui pour rester informé de l'actualité française — chaque jour.\n\n#SMIC #HausseSalaire #France #Société #FranceAujourdhui",
+  "intro": "3 millions de salariés vont voir leur fiche de paie changer dès janvier.\n\nLe gouvernement a officialisé une hausse du SMIC de 2,2% applicable au 1er janvier 2026. La mesure touche l'ensemble des secteurs privé et public. C'est la troisième revalorisation en deux ans.\n\n• Nouveau montant brut mensuel : 1 801 €\n• Hausse nette estimée : +38 € par mois\n• Secteurs les plus touchés : restauration, aide à domicile, commerce\n• Les salaires au-dessus du SMIC ne sont pas concernés\n• Coût employeur : +2,2% sur la masse salariale\n\nConcrètement, pour des millions de foyers français au salaire minimum, c'est la différence entre boucler ou non un budget serré.",
+  "question": "Est-ce que +38 € par mois, c'est suffisant face à la hausse des prix des deux dernières années ?",
+  "cta": "📰 Source(s) : Le Monde\n\n👉 Suivez France Aujourd'hui pour rester informé de l'actualité française — chaque jour.\n\n#SMIC #HausseSalaire #France #Société #FranceAujourdhui",
   "hashtags": ["#SMIC", "#HausseSalaire", "#France", "#Société", "#FranceAujourdhui"],
-  "seed_comment": "💬 Et vous, qu'en pensez-vous ? Est-ce que cette nouvelle vous surprend ? Répondez en commentaire — on lit tout. 👇",
-  "story_category": "Société"
+  "seed_comment": "💬 Et vous ? la hausse du SMIC — votre réaction en commentaire 👇",
+  "seed_comment_template_id": "fr_01",
+  "story_category": "Société",
+  "content_signals": {
+    "binary_frame": false,
+    "poll_fit_score": 4,
+    "protagonist_named": null,
+    "best_format": "post",
+    "fr_it_stake_first_sentence": true,
+    "pillar_hint": "france-en-debat"
+  }
 }
 
 ═══════════════════════════════════════════════════════════════
@@ -174,10 +216,29 @@ SECTION 4 — NOTES LINGUISTIQUES PAR PAYS
 ═══════════════════════════════════════════════════════════════
 
 FRANCE (FR) — Langue : français
-Registre : sérieux, informatif, adulte. Vouvoiement implicite. Mots à bannir : "choquant", "incroyable", "buzz". Hashtag page fixe : #FranceAujourdhui.
+Registre : formel-chaleureux. Vouvoiement strict dans la question d'engagement et le CTA ("Pensez-vous que...", "Et vous ?"). Ton sérieux mais jamais froid — l'information doit toucher le lecteur, pas le mettre à distance. Mots à bannir : "choquant", "incroyable", "buzz", "scandaleux". Hashtag page fixe : #FranceAujourdhui.
+Si boost_eligible = false pour cet article : éviter toute formulation qui amplifie une controverse politique, une opposition communautaire ou un sujet sensible aux politiques publicitaires. Reformuler vers l'enjeu factuel (ex : au lieu de "polémique sur...", écrire "le débat porte sur...").
+Piliers éditoriaux (utiliser pillar_hint pour guider le ton et l'angle) :
+- france-en-debat : sujets de société clivants (retraites, immigration, justice)
+- fierte-francaise : réussites, excellence française, patrimoine
+- le-monde-vu-paris : actualité internationale vue de France (enjeu france d'abord)
+- sondage-du-jour : opinion, sondages, questions de société
+- retour-sur : événements commémoratifs, anniversaires, "il y a X ans"
+- ma-ville-aujourdhui : actualité locale et régionale
 
 ITALIE (IT) — Lingua : italiano
-Registro : diretto, informativo, professionale. Parole vietate : "clamoroso", "shock", "bomba". Hashtag fisso : #ItaliaOggi.
+Registro : diretto ed emotivo — il lettore italiano risponde a storie concrete di persone, numeri reali e impatto immediato sulla vita quotidiana. Tono caldo ma autorevole, mai gridato. Parole vietate : "clamoroso", "shock", "bomba", "incredibile". Hashtag fisso : #ItaliaOggi.
+Per articoli giudiziari o legali : è consentito citare il nome della legge o dell'articolo di codice (es. "art. 416-bis c.p.") — aiuta il lettore italiano a verificare e aumenta la credibilità.
+Se boost_eligible = false per questo articolo : evitare qualsiasi formulazione che amplifichi la controversia politica, l'opposizione comunitaria o soggetti sensibili alle policy pubblicitarie. Riformulare verso il fatto concreto.
+Pilastri editoriali (usare pillar_hint per orientare il tono e l'angolo) :
+- fatto-del-giorno : notizia principale del giorno, fatto + conseguenza
+- italia-nel-mondo : Italia vista dall'estero, o mondo visto dall'Italia
+- capire-la-legge : spiegazione di norme, sentenze, riforme giuridiche
+- azzurri : sport italiano, Nazionale, eventi sportivi nazionali
+- italia-che-funziona : storie positive, eccellenze, soluzioni italiane
+- storie-italiane : cronaca umana, storie di persone comuni
+- la-mia-citta : attualità locale e regionale italiana
+- vaticano : notizie vaticane e religiose cattoliche
 
 AUSTRALIE (AU) — Language : English
 Register: direct, factual, conversational. Sentence case titles. Fixed hashtag: #AustraliaToday.
@@ -185,14 +246,48 @@ Register: direct, factual, conversational. Sentence case titles. Fixed hashtag: 
 SUÈDE (SE) — Språk : svenska
 Registre : saklig, tydlig. Undvik onödiga superlativer. Fast hashtag : #SverigeIdag.`;
 
-export async function generateCaption(article, captionLanguage, pageName, pageHashtag) {
+export const SEED_COMMENT_TEMPLATES = {
+  FR: [
+    { id: 'fr_01', t: '💬 Et vous ? {topic_noun} — votre réaction en commentaire 👇' },
+    { id: 'fr_02', t: 'Pour ou contre ? {topic_noun} en débat — votre verdict 👇' },
+    { id: 'fr_03', t: 'Est-ce que ça vous touche directement ? {topic_noun} — on vous lit tous 👇' },
+    { id: 'fr_04', t: 'Un mot pour décrire la situation : {topic_noun} — répondez ici 👇' },
+    { id: 'fr_05', t: '🗣️ La parole est à vous. {topic_noun} — votre avis compte.' },
+    { id: 'fr_06', t: 'Vous êtes surpris(e) par {topic_noun} ? Dites-le en commentaire 👇' },
+    { id: 'fr_07', t: '💬 {topic_noun} — d\'accord ou pas ? Un commentaire suffit.' },
+    { id: 'fr_08', t: 'Dans votre quotidien, {topic_noun} ça change quoi ? Répondez ci-dessous 👇' },
+    { id: 'fr_09', t: 'Bonne ou mauvaise nouvelle ? {topic_noun} — votre verdict 👇' },
+    { id: 'fr_10', t: 'On débat : {topic_noun} — pour ou contre en commentaire 👇' },
+  ],
+  IT: [
+    { id: 'it_01', t: '💬 E voi, cosa ne pensate? {topic_noun} — un commento ci basta 👇' },
+    { id: 'it_02', t: 'Pro o contro? {topic_noun} — il vostro verdetto 👇' },
+    { id: 'it_03', t: 'Vi riguarda da vicino? {topic_noun} — rispondete qui sotto 👇' },
+    { id: 'it_04', t: 'Una parola su {topic_noun} — scrivetela qui 👇' },
+    { id: 'it_05', t: '🗣️ Vi leggiamo tutti. {topic_noun} — cosa ne pensate?' },
+    { id: 'it_06', t: 'Siete d\'accordo? {topic_noun} — dite la vostra 👇' },
+    { id: 'it_07', t: '💬 {topic_noun} — buona o cattiva notizia? Un commento qui sotto.' },
+    { id: 'it_08', t: 'Nella vostra vita di tutti i giorni, {topic_noun} che effetto fa? 👇' },
+    { id: 'it_09', t: 'Un commento vale più di un like. {topic_noun} — scriveteci 👇' },
+    { id: 'it_10', t: 'Notizia che vi sorprende? {topic_noun} — reagite qui sotto 👇' },
+  ],
+};
+
+function pickEligibleTemplates(country, recentIds) {
+  const pool = SEED_COMMENT_TEMPLATES[country] || [];
+  const recent = new Set(recentIds);
+  const eligible = pool.filter(t => !recent.has(t.id));
+  return eligible.length > 0 ? eligible : pool;
+}
+
+export async function generateCaption(article, captionLanguage, pageName, pageHashtag, recentSeedTemplateIds = []) {
   const client = getClient();
   // Cap summary at 1500 chars — very long articles caused JSON truncation at 1200 output tokens.
   const summary = (article.summary || 'Non disponible').slice(0, 1500);
 
   const raw = await client.messages.create({
     model: MODEL,
-    max_tokens: 1200,
+    max_tokens: 1400,
     system: [{ type: 'text', text: CONTENT_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
     messages: [{
       role: 'user',
@@ -200,19 +295,22 @@ export async function generateCaption(article, captionLanguage, pageName, pageHa
 
 Rédige un post Facebook complet pour ${pageName} en ${captionLanguage}.
 Hashtag fixe de la page : ${pageHashtag || '#' + pageName.replace(/\s+/g, '')}
-
+${article.boost_eligible === false ? `\nNote : boost_eligible=false — adapter le registre selon les règles Section 4 ${article.country}.` : ''}
 Structure du post (dans l'ordre, sans labels visibles dans le texte) :
-1. Hook — 1 phrase avec le fait ou chiffre le plus frappant
+1. Hook — tension/conflit central avec acteur nommé si possible
 2. Contexte — 2-3 phrases neutres (qui, quoi, où, quand)
 3. Détails — 3-5 bullets commençant par •
 4. Enjeux — 1 phrase sur l'impact concret pour le lecteur
-5. Question d'engagement — 1 question spécifique
+5. Question d'engagement — fermée ou binaire (pas ouverte seule)
 6. Source : 📰 Source(s) : ${article.source}
 7. CTA : 👉 Suivez ${pageName} pour rester informé...
 8. Hashtags (max 5, inline à la fin)
 
 JSON attendu :
-{"caption":"[post complet prêt à publier, avec \\n pour les sauts de ligne]","hashtags":["#Tag1","#Tag2","#Tag3"],"seed_comment":"[commentaire à publier dans les 2min]","story_category":"[Politique|Société|Sport|Culture|International|Santé|Environnement]"}
+{"intro":"[blocs 1-4]","question":"[bloc 5]","cta":"[blocs 6-7 + hashtags]","hashtags":["#Tag1","#Tag2","#Tag3"],"seed_comment":"[template rempli]","seed_comment_template_id":"[id du template]","story_category":"[Politique|Société|Sport|Culture|International|Santé|Environnement]","content_signals":{"binary_frame":true,"poll_fit_score":3,"protagonist_named":"Dupont","best_format":"post","fr_it_stake_first_sentence":true,"pillar_hint":"france-en-debat"}}
+
+Templates éligibles pour le seed_comment (choisir un parmi ces IDs, remplir {topic_noun} en ${captionLanguage}) :
+${pickEligibleTemplates(article.country, recentSeedTemplateIds).map(t => `[${t.id}] "${t.t}"`).join('\n')}
 
 Article :
 Titre : ${article.title}
@@ -226,14 +324,18 @@ Résumé : ${summary}`,
     const rawText = response.content[0].text.trim();
     const jsonMatch = rawText.match(/\{[\s\S]*\}/);
     const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : rawText);
-    if (!parsed.caption) parsed.caption = rawText;
+    if (!parsed.intro) parsed.intro = rawText;
     return parsed;
   } catch {
     return {
-      caption: response.content[0].text.trim(),
+      intro: response.content[0].text.trim(),
+      question: '',
+      cta: '',
       hashtags: [],
       seed_comment: '💬 Et vous, qu\'en pensez-vous ? Est-ce que cette nouvelle vous surprend ? Répondez en commentaire — on lit tout. 👇',
+      seed_comment_template_id: null,
       story_category: 'Société',
+      content_signals: {},
     };
   }
 }
@@ -273,23 +375,32 @@ Résumé: ${summary}`,
   }
 }
 
-export async function generateImagePrompt(article) {
+const ENGLISH_STOPWORDS = /\b(the|and|of|for|has|have|will|with|this|that|are|was|were|been|being)\b/i;
+const LANG_ENFORCE = new Set(['français', 'italiano']);
+
+export async function generateImagePrompt(article, captionLanguage = '') {
   const client = getClient();
   const summary = (article.summary || 'Not available').slice(0, 1500);
+  const enforceLocal = LANG_ENFORCE.has(captionLanguage);
+  const langRule = captionLanguage
+    ? `- MUST be written in ${captionLanguage}. NEVER use English. Even if the article summary is in English, the headline must be in ${captionLanguage}.`
+    : '- In the same language as the article.';
 
-  const raw = await client.messages.create({
-    model: MODEL,
-    max_tokens: 400,
-    messages: [{
-      role: 'user',
-      content: `Generate an ultra-realistic AI image prompt AND a short image headline for this news article.
+  let lastResult = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const raw = await client.messages.create({
+      model: MODEL,
+      max_tokens: 400,
+      messages: [{
+        role: 'user',
+        content: `Generate an ultra-realistic AI image prompt AND a short image headline for this news article.
 
 Return JSON only: {"image_prompt": "...", "image_headline": "..."}
 
 IMAGE_HEADLINE rules (STRICT — count words before responding):
 - MAXIMUM 6 WORDS. If more than 6 words: rewrite until ≤ 6 words.
 - Noun-based preferred. Avoid verbs if possible.
-- In the same language as the article.
+- ${langRule}
 - Concise standalone visual text for image overlay — NOT the article title.
 
 IMAGE_PROMPT rules:
@@ -315,25 +426,31 @@ CATEGORY SUBJECT GUIDE (pick closest match):
 
 Article title: ${article.title}
 Summary: ${summary}`,
-    }],
-  });
-  const response = parseResponse(raw);
+      }],
+    });
+    const response = parseResponse(raw);
 
-  try {
-    const text = response.content[0].text.trim();
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
-    const headlineWords = (parsed.image_headline || article.title).split(/\s+/).slice(0, 6);
-    return {
-      prompt: parsed.image_prompt?.trim() || text,
-      imageHeadline: headlineWords.join(' '),
-    };
-  } catch {
-    return {
-      prompt: response.content[0].text.trim(),
-      imageHeadline: article.title.split(/\s+/).slice(0, 6).join(' '),
-    };
+    try {
+      const text = response.content[0].text.trim();
+      const jsonMatch = text.match(/\{[\s\S]*\}/);
+      const parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
+      const headlineWords = (parsed.image_headline || article.title).split(/\s+/).slice(0, 6);
+      lastResult = {
+        prompt: parsed.image_prompt?.trim() || text,
+        imageHeadline: headlineWords.join(' '),
+      };
+    } catch {
+      lastResult = {
+        prompt: response.content[0].text.trim(),
+        imageHeadline: article.title.split(/\s+/).slice(0, 6).join(' '),
+      };
+    }
+
+    if (!enforceLocal || !ENGLISH_STOPWORDS.test(lastResult.imageHeadline)) break;
+    console.error(`  image_headline retry ${attempt + 1}: English detected in "${lastResult.imageHeadline}" (lang: ${captionLanguage})`);
   }
+
+  return lastResult;
 }
 
 // Pure utility — no API call. Formats the raw image prompt into the standard

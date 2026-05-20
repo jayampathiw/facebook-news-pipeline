@@ -93,7 +93,7 @@ import { Article, SupabaseService } from '../core/supabase.service';
 
         <!-- Caption -->
         @if (activeTab() === 1) {
-          @if (article.ai_caption?.text) {
+          @if (article.ai_caption?.intro) {
             @if (article.story_category) {
               <div style="display:flex;align-items:center;gap:6px;">
                 <span class="ink-badge ib-brand">{{ article.story_category }}</span>
@@ -101,10 +101,24 @@ import { Article, SupabaseService } from '../core/supabase.service';
             }
             <div>
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-                <p class="section-label" style="margin-bottom:0;">Facebook Caption</p>
-                <button class="btn-ink" style="height:26px;padding:0 10px;font-size:11px;" (click)="copy(article.ai_caption!.text)">Copy</button>
+                <p class="section-label" style="margin-bottom:0;">Intro</p>
+                <button class="btn-ink" style="height:26px;padding:0 10px;font-size:11px;" (click)="copy(article.ai_caption!.intro)">Copy</button>
               </div>
-              <div class="ink-content-block" style="white-space:pre-wrap;max-height:280px;overflow-y:auto;">{{ article.ai_caption!.text }}</div>
+              <div class="ink-content-block" style="white-space:pre-wrap;max-height:200px;overflow-y:auto;">{{ article.ai_caption!.intro }}</div>
+            </div>
+            <div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <p class="section-label" style="margin-bottom:0;">Engagement Question</p>
+                <button class="btn-ink" style="height:26px;padding:0 10px;font-size:11px;" (click)="copy(article.ai_caption!.question)">Copy</button>
+              </div>
+              <div class="ink-content-block" style="white-space:pre-wrap;">{{ article.ai_caption!.question }}</div>
+            </div>
+            <div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <p class="section-label" style="margin-bottom:0;">CTA &amp; Source</p>
+                <button class="btn-ink" style="height:26px;padding:0 10px;font-size:11px;" (click)="copy(article.ai_caption!.cta)">Copy</button>
+              </div>
+              <div class="ink-content-block" style="white-space:pre-wrap;">{{ article.ai_caption!.cta }}</div>
             </div>
             @if ((article.hashtags?.length ?? 0) > 0) {
               <div>
@@ -219,6 +233,53 @@ import { Article, SupabaseService } from '../core/supabase.service';
           }
         }
 
+        <!-- Signals -->
+        @if (activeTab() === 4) {
+          @if (article.content_signals && (article.content_signals.pillar_hint || article.content_signals.best_format || article.content_signals.protagonist_named !== undefined)) {
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+              <div class="ink-surface" style="padding:10px;border-radius:6px;border:1px solid var(--ink-border);">
+                <p class="section-label" style="margin-bottom:4px;">Binary Frame</p>
+                <span [class]="'ink-badge ' + (article.content_signals!.binary_frame ? 'ib-breaking' : '')">{{ article.content_signals!.binary_frame ? '✓ Yes' : '— No' }}</span>
+              </div>
+              <div class="ink-surface" style="padding:10px;border-radius:6px;border:1px solid var(--ink-border);">
+                <p class="section-label" style="margin-bottom:4px;">Poll Fit</p>
+                <span style="font-size:20px;font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--ink-brand);">{{ article.content_signals!.poll_fit_score ?? '—' }}<span style="font-size:12px;font-weight:400;color:var(--ink-text-3);">/5</span></span>
+              </div>
+              <div class="ink-surface" style="padding:10px;border-radius:6px;border:1px solid var(--ink-border);">
+                <p class="section-label" style="margin-bottom:4px;">Protagonist</p>
+                <span style="font-size:13px;font-weight:600;color:var(--ink-text);">{{ article.content_signals!.protagonist_named ?? '—' }}</span>
+              </div>
+              <div class="ink-surface" style="padding:10px;border-radius:6px;border:1px solid var(--ink-border);">
+                <p class="section-label" style="margin-bottom:4px;">Best Format</p>
+                <span class="ink-badge ib-brand">{{ article.content_signals!.best_format ?? '—' }}</span>
+              </div>
+              <div class="ink-surface" style="padding:10px;border-radius:6px;border:1px solid var(--ink-border);">
+                <p class="section-label" style="margin-bottom:4px;">Local Stake First</p>
+                <span [class]="'ink-badge ' + (article.content_signals!.fr_it_stake_first_sentence ? 'ib-standard' : '')">{{ article.content_signals!.fr_it_stake_first_sentence ? '✓ Yes' : '— No' }}</span>
+              </div>
+              <div class="ink-surface" style="padding:10px;border-radius:6px;border:1px solid var(--ink-border);">
+                <p class="section-label" style="margin-bottom:4px;">Pillar</p>
+                <span style="font-size:11px;font-weight:600;font-family:'JetBrains Mono',monospace;color:var(--ink-text);">{{ article.content_signals!.pillar_hint ?? '—' }}</span>
+              </div>
+            </div>
+            @if ((article.cluster_size ?? 1) >= 2) {
+              <div style="border-top:1px solid var(--ink-border);"></div>
+              <div>
+                <p class="section-label">Cluster</p>
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <span class="ink-badge ib-alert">🔗 {{ article.cluster_size }} sources</span>
+                  <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--ink-text-3);">ID: {{ article.cluster_id }}</span>
+                </div>
+              </div>
+            }
+          } @else {
+            <div class="empty-state">
+              <div style="font-size:32px;opacity:.2;">◈</div>
+              <p style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;">No signals yet — generate content first</p>
+            </div>
+          }
+        }
+
       </div>
 
       <!-- ── Inline toast ── -->
@@ -261,7 +322,7 @@ export class ArticleDetailComponent implements OnDestroy {
   @Output() closePanel = new EventEmitter<void>();
   @Output() articleUpdated = new EventEmitter<Article>();
 
-  tabs = ['Overview', 'Caption', 'SEO', 'Image'];
+  tabs = ['Overview', 'Caption', 'SEO', 'Image', 'Signals'];
   activeTab = signal(0);
   generating = signal(false);
   posting = signal(false);
@@ -360,8 +421,9 @@ export class ArticleDetailComponent implements OnDestroy {
   }
 
   copyFullPost() {
-    const text = this.article.ai_caption?.text;
-    if (!text) return;
+    const cap = this.article.ai_caption;
+    if (!cap?.intro) return;
+    const text = [cap.intro, cap.question, cap.cta].filter(Boolean).join('\n\n');
     this.copy(text);
   }
 }
