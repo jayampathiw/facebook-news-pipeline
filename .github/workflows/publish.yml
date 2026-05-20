@@ -18,10 +18,21 @@ jobs:
       - name: Run slot publisher
         run: node src/scripts/publish-slot.js
         env:
-          SUPABASE_URL:       ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY:       ${{ secrets.SUPABASE_KEY }}
-          FB_PAGE_ID_FR:      ${{ secrets.FB_PAGE_ID_FR }}
-          FB_ACCESS_TOKEN_FR: ${{ secrets.FB_ACCESS_TOKEN_FR }}
-          FB_PAGE_ID_IT:      ${{ secrets.FB_PAGE_ID_IT }}
-          FB_ACCESS_TOKEN_IT: ${{ secrets.FB_ACCESS_TOKEN_IT }}
-          XAI_API_KEY:        ${{ secrets.XAI_API_KEY }}
+          SUPABASE_URL:          ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:          ${{ secrets.SUPABASE_KEY }}
+          FB_PAGE_ID_FR:         ${{ secrets.FB_PAGE_ID_FR }}
+          FB_ACCESS_TOKEN_FR:    ${{ secrets.FB_ACCESS_TOKEN_FR }}
+          FB_PAGE_ID_IT:         ${{ secrets.FB_PAGE_ID_IT }}
+          FB_ACCESS_TOKEN_IT:    ${{ secrets.FB_ACCESS_TOKEN_IT }}
+          # Image generation — set IMAGE_PROVIDER variable to switch (cloudflare | google | pollinations)
+          IMAGE_PROVIDER:        ${{ vars.IMAGE_PROVIDER }}
+          # Cloudflare Workers AI (default)
+          CF_ACCOUNT_ID:         ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN:          ${{ secrets.CF_API_TOKEN }}
+          CF_IMAGE_MODEL:        ${{ vars.CF_IMAGE_MODEL }}
+          # Google AI Studio
+          GOOGLE_AI_KEY:         ${{ secrets.GOOGLE_AI_KEY }}
+          GOOGLE_IMAGE_MODEL:    ${{ vars.GOOGLE_IMAGE_MODEL }}
+          # Pollinations.ai (no key required; token optional)
+          POLLINATIONS_TOKEN:    ${{ secrets.POLLINATIONS_TOKEN }}
+          POLLINATIONS_MODEL:    ${{ vars.POLLINATIONS_MODEL }}

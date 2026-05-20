@@ -13,7 +13,11 @@ import { nearestSlot } from '../utils/publishScore.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ASSETS_DIR = resolve(__dirname, '../../assets');
 const FB_BASE = 'https://graph.facebook.com/v22.0';
-const XAI_IMAGE_API = 'https://api.x.ai/v1/images/generations';
+
+// IMAGE_PROVIDER selects the image generation backend.
+// Supported: 'cloudflare' (default), 'google', 'pollinations'
+// Set IMAGE_PROVIDER as a GitHub Actions variable (not secret) to switch providers.
+const IMAGE_PROVIDER = process.env.IMAGE_PROVIDER || 'cloudflare';
 
 const REQUIRED_ENV = ['SUPABASE_URL', 'SUPABASE_KEY'];
 const missing = REQUIRED_ENV.filter(k => !process.env[k]);
@@ -22,10 +26,15 @@ if (missing.length) {
   process.exit(1);
 }
 
-if (!process.env.XAI_API_KEY) {
-  console.error('Missing XAI_API_KEY — image generation unavailable');
+if (IMAGE_PROVIDER === 'cloudflare' && (!process.env.CF_ACCOUNT_ID || !process.env.CF_API_TOKEN)) {
+  console.error('Missing CF_ACCOUNT_ID or CF_API_TOKEN for Cloudflare image generation');
   process.exit(1);
 }
+if (IMAGE_PROVIDER === 'google' && !process.env.GOOGLE_AI_KEY) {
+  console.error('Missing GOOGLE_AI_KEY for Google AI image generation');
+  process.exit(1);
+}
+// pollinations needs no key
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 const antonFontB64 = readFileSync(resolve(ASSETS_DIR, 'fonts/Anton-Regular.ttf')).toString('base64');
@@ -113,23 +122,55 @@ async function publishForCountry(country, slotTarget) {
   }
 }
 
+// Dispatcher — routes to the active provider
 async function generateImage(prompt) {
-  const genRes = await axios.post(XAI_IMAGE_API, {
-    model: 'aurora',
-    prompt,
-    n: 1,
-    response_format: 'url',
+  console.log(`[image] Generating via provider: ${IMAGE_PROVIDER}`);
+  if (IMAGE_PROVIDER === 'google')       return generateImageGoogle(prompt);
+  if (IMAGE_PROVIDER === 'pollinations') return generateImagePollinations(prompt);
+  return generateImageCloudflare(prompt); // default
+}
+
+// Cloudflare Workers AI — FLUX.1-schnell, ~2000 imgs/day free, resets daily
+// Override model via CF_IMAGE_MODEL env var (e.g. @cf/stabilityai/stable-diffusion-xl-base-1.0)
+async function generateImageCloudflare(prompt) {
+  const model = process.env.CF_IMAGE_MODEL || '@cf/black-forest-labs/flux-1-schnell';
+  const url = `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/run/${model}`;
+  const res = await axios.post(url,
+    { prompt, num_steps: 8 },
+    {
+      headers: { Authorization: `Bearer ${process.env.CF_API_TOKEN}`, 'Content-Type': 'application/json' },
+      timeout: 60000,
+    }
+  );
+  return Buffer.from(res.data.result.image, 'base64');
+}
+
+// Google AI Studio — Gemini image generation, ~500 imgs/day free
+// Override model via GOOGLE_IMAGE_MODEL env var
+async function generateImageGoogle(prompt) {
+  const model = process.env.GOOGLE_IMAGE_MODEL || 'gemini-2.0-flash-preview-image-generation';
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GOOGLE_AI_KEY}`;
+  const res = await axios.post(url, {
+    contents: [{ parts: [{ text: prompt }] }],
+    generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
   }, {
-    headers: {
-      Authorization: `Bearer ${process.env.XAI_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     timeout: 60000,
   });
+  const parts = res.data.candidates[0].content.parts;
+  const imgPart = parts.find(p => p.inlineData);
+  if (!imgPart) throw new Error('Google AI returned no image in response');
+  return Buffer.from(imgPart.inlineData.data, 'base64');
+}
 
-  const imageUrl = genRes.data.data[0].url;
-  const imgRes = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 30000 });
-  return Buffer.from(imgRes.data);
+// Pollinations.ai — free, no key required (POLLINATIONS_TOKEN optional, removes rate limits)
+// Override model via POLLINATIONS_MODEL env var (e.g. flux-pro, turbo)
+async function generateImagePollinations(prompt) {
+  const model = process.env.POLLINATIONS_MODEL || 'flux';
+  const token = process.env.POLLINATIONS_TOKEN ? `&token=${process.env.POLLINATIONS_TOKEN}` : '';
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1080&height=1080&model=${model}&nologo=true${token}`;
+  const res = await axios.get(url, { responseType: 'arraybuffer', timeout: 90000 });
+  return Buffer.from(res.data);
 }
 
 async function compositeImage(imageBuffer, headline, country) {
