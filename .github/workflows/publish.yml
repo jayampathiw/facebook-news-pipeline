@@ -24,4 +24,4 @@ jobs:
           FB_ACCESS_TOKEN_FR: ${{ secrets.FB_ACCESS_TOKEN_FR }}
           FB_PAGE_ID_IT:      ${{ secrets.FB_PAGE_ID_IT }}
           FB_ACCESS_TOKEN_IT: ${{ secrets.FB_ACCESS_TOKEN_IT }}
-          STABILITY_KEY:      ${{ secrets.STABILITY_KEY }}
+          XAI_API_KEY:        ${{ secrets.XAI_API_KEY }}

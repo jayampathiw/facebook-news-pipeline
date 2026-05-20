@@ -13,7 +13,7 @@ import { nearestSlot } from '../utils/publishScore.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ASSETS_DIR = resolve(__dirname, '../../assets');
 const FB_BASE = 'https://graph.facebook.com/v22.0';
-const STABILITY_API = 'https://api.stability.ai/v2beta/stable-image/generate/core';
+const XAI_IMAGE_API = 'https://api.x.ai/v1/images/generations';
 
 const REQUIRED_ENV = ['SUPABASE_URL', 'SUPABASE_KEY'];
 const missing = REQUIRED_ENV.filter(k => !process.env[k]);
@@ -22,8 +22,8 @@ if (missing.length) {
   process.exit(1);
 }
 
-if (!process.env.STABILITY_KEY) {
-  console.error('Missing STABILITY_KEY — image generation unavailable');
+if (!process.env.XAI_API_KEY) {
+  console.error('Missing XAI_API_KEY — image generation unavailable');
   process.exit(1);
 }
 
@@ -114,22 +114,22 @@ async function publishForCountry(country, slotTarget) {
 }
 
 async function generateImage(prompt) {
-  const form = new FormData();
-  form.append('prompt', prompt);
-  form.append('aspect_ratio', '1:1');
-  form.append('output_format', 'png');
-
-  const res = await axios.post(STABILITY_API, form, {
+  const genRes = await axios.post(XAI_IMAGE_API, {
+    model: 'aurora',
+    prompt,
+    n: 1,
+    response_format: 'url',
+  }, {
     headers: {
-      ...form.getHeaders(),
-      Authorization: `Bearer ${process.env.STABILITY_KEY}`,
-      Accept: 'image/*',
+      Authorization: `Bearer ${process.env.XAI_API_KEY}`,
+      'Content-Type': 'application/json',
     },
-    responseType: 'arraybuffer',
     timeout: 60000,
   });
 
-  return Buffer.from(res.data);
+  const imageUrl = genRes.data.data[0].url;
+  const imgRes = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 30000 });
+  return Buffer.from(imgRes.data);
 }
 
 async function compositeImage(imageBuffer, headline, country) {
