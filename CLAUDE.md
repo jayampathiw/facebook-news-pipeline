@@ -46,6 +46,9 @@ src/
 │   ├── generate-caption.js          ← CLI: generate all fields for 1+ article IDs
 │   ├── generate-captions-batch.js   ← batch: all pending without captions
 │   ├── generate-image.js            ← image-only regeneration for 1+ IDs
+│   ├── preview-images.js            ← generate + save composited images locally (no posting)
+│   ├── publish-slot.js              ← post highest-scored approved article at slot time
+│   ├── recompute-scores.js          ← recompute publish_score for all articles
 │   └── save-article-content.js      ← DB writer (used by Claude Code skills)
 └── pipeline.js                      ← main orchestrator
 
@@ -76,6 +79,17 @@ node src/scripts/generate-captions-batch.js [--country FR|IT]
 
 # Regenerate image prompt only
 node src/scripts/generate-image.js <id1> <id2> ...
+
+# Generate and save preview images locally (no Facebook post)
+node src/scripts/preview-images.js <id1> <id2> ...
+# → saves to output/previews/<id>.png
+
+# Post highest-scored approved article at the current slot window
+node src/scripts/publish-slot.js
+# Must run within ±15 min of a slot: FR 07:30/12:00/19:00, IT 07:30/11:30/15:30/19:30 CEST
+
+# Recompute publish_score for all articles
+node src/scripts/recompute-scores.js
 
 # Or use Claude Code skills (see below)
 ```

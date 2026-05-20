@@ -1,6 +1,6 @@
 # Secrets & Configuration Guide
 
-**Last updated:** 2026-05-20
+**Last updated:** 2026-05-20 (image provider secrets added to local .env)
 
 All sensitive credentials are stored as GitHub Actions Secrets (never in code).
 Non-sensitive config is stored as GitHub Actions Variables.
@@ -122,6 +122,8 @@ CF_API_TOKEN=your_cf_api_token
 GOOGLE_AI_KEY=your_google_ai_key
 POLLINATIONS_TOKEN=your_pollinations_token
 ```
+
+> The image generation secrets (`CF_*`, `GOOGLE_AI_KEY`, `POLLINATIONS_TOKEN`, `IMAGE_PROVIDER`) are required locally to run `preview-images.js` or `publish-slot.js`. They are also configured as GitHub Secrets/Variables for Actions workflows.
 
 ---
 

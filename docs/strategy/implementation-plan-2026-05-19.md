@@ -39,9 +39,30 @@ Changes made during the go-live session on 2026-05-20:
 - All model names overridable via variables (`CF_IMAGE_MODEL`, `GOOGLE_IMAGE_MODEL`, `POLLINATIONS_MODEL`)
 - Secrets guide created: `docs/setup/secrets-guide.md`
 
+---
+
+### Deployment log — 2026-05-20 (continued — first post session)
+
+**Image pipeline fixes:**
+- **Bug fix:** `publish-slot.js` was hardcoding `${country}_Logo.png` for watermarks — files never existed under those names. Fixed by importing `SOURCES` from `config/sources.js` and reading `SOURCES[country].watermarkFile` instead.
+- **Bug fix:** `sources.js` had incorrect watermark filenames — FR was `FranceAujourdhui_Logo_v2.png` (only a Windows Zone.Identifier sidecar existed, not a real PNG) → corrected to `FranceAujourdhui_Logo.png`. IT was `ItaliaOggi_Logo.png` → corrected to `vivere_in_italia_banner_logo.png`.
+- **New script:** `src/scripts/preview-images.js` — generates and saves composited images locally to `output/previews/` without posting to Facebook. Supports all 3 image providers. Used for pre-post visual review.
+- Image provider secrets added to local `.env`: `CF_ACCOUNT_ID`, `CF_API_TOKEN`, `IMAGE_PROVIDER`, `GOOGLE_AI_KEY`, `POLLINATIONS_TOKEN`
+
+**First content batch (Bolloré/Canal+ cluster — FR):**
+- Identified top 5 Bolloré-cluster articles from DB, cross-referenced against trending FR content
+- Captions generated for all 5 articles via `node src/scripts/generate-caption.js`
+- Scores recomputed via `node src/scripts/recompute-scores.js` — 483 articles updated
+- 3 articles approved in dashboard for posting (recommended slots):
+  - `2a369826` — *Canal+ punit 600 professionnels* — 12:00 CEST
+  - `b55f6736` — *Arthur Harari et la pétition anti-Bolloré* — 19:00 CEST
+  - `6c59c06d` — *Boycott Skyjo* — 07:30 CEST next day
+- Preview images generated and reviewed locally (`output/previews/`)
+
 **Pending from go-live session:**
 - FB_PAGE_ID_FR, FB_ACCESS_TOKEN_FR, FB_PAGE_ID_IT, FB_ACCESS_TOKEN_IT — not yet added to GitHub Secrets
-- Caption smoke tests (B+C Step 5) — not yet run
+- Actually post the 3 approved articles (run `node src/scripts/publish-slot.js` at each slot time, or re-enable `publish.yml`)
+- Caption smoke tests (B+C Step 5) — partially done (5 Bolloré articles reviewed)
 - Bulk regenerate pending queue (B+C Step 6) — not yet run
 
 ---

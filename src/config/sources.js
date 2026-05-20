@@ -22,7 +22,7 @@ export const SOURCES = {
     fbPageEnvKey: 'FR',
     pageName: "France Aujourd'hui",
     pageHashtag: '#FranceAujourdhui',
-    watermarkFile: 'FranceAujourdhui_Logo_v2.png',
+    watermarkFile: 'FranceAujourdhui_Logo.png',
   },
   IT: {
     rss: [
@@ -50,7 +50,7 @@ export const SOURCES = {
     fbPageEnvKey: 'IT',
     pageName: 'Italia Oggi',
     pageHashtag: '#ItaliaOggi',
-    watermarkFile: 'ItaliaOggi_Logo.png',
+    watermarkFile: 'vivere_in_italia_banner_logo.png',
   },
 
   // To add a new country, copy this block and fill in:

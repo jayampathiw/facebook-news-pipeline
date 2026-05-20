@@ -1,6 +1,6 @@
 # Pipeline Overview — How Everything Works
 
-**Last updated:** 2026-05-20
+**Last updated:** 2026-05-20 (revised — image pipeline fixes, preview workflow added)
 
 This document explains every workflow in the pipeline with step-by-step diagrams.
 
@@ -314,7 +314,7 @@ flowchart TD
 
     IMGGEN["Generate image\nvia IMAGE_PROVIDER\ndefault: Cloudflare FLUX.1-schnell"]
 
-    COMPOSITE["Composite image\nAnton font headline overlay\ngradient top\nwatermark bottom-right 70% opacity"]
+    COMPOSITE["Composite image\nAnton font headline overlay\ngradient top\nwatermark: SOURCES[country].watermarkFile\nbottom-right 70% opacity"]
 
     FB["POST to Facebook\nGraph API v22.0\n/{page-id}/photos\nwith caption + image"]
 
@@ -353,7 +353,69 @@ flowchart TD
 
 ---
 
-## 7. Engagement Metrics Scraper
+## 7. Local Preview Workflow (pre-post review)
+
+Before posting, you can generate and inspect images locally without touching Facebook.
+
+```mermaid
+flowchart TD
+    APPROVE["✅ Articles approved in dashboard"]
+
+    RECOMPUTE["Recompute scores\nnode src/scripts/recompute-scores.js\n~90s for 500 articles"]
+
+    PREVIEW["Generate preview images\nnode src/scripts/preview-images.js <id1> <id2> ..."]
+
+    PROVIDER{"IMAGE_PROVIDER in .env"}
+    CF2["☁️ Cloudflare FLUX"]
+    GOOGLE2["🔵 Google Gemini"]
+    POLL2["🌸 Pollinations"]
+
+    COMPOSITE2["Composite\nheadline overlay + watermark\n(same as production)"]
+
+    SAVE2["💾 Save to\noutput/previews/<id>.png"]
+
+    REVIEW2["Review in file explorer\n\\\\wsl.localhost\\Ubuntu\\home\\jayam\\...\n\\output\\previews\\"]
+
+    OK{"Images look good?"}
+
+    REGEN["Regenerate image prompt\nnode src/scripts/generate-image.js <id>"]
+
+    POST["Post at slot time\nnode src/scripts/publish-slot.js\n(must be within ±15 min of slot)"]
+
+    APPROVE --> RECOMPUTE
+    RECOMPUTE --> PREVIEW
+    PREVIEW --> PROVIDER
+    PROVIDER -->|"cloudflare (default)"| CF2
+    PROVIDER -->|"google"| GOOGLE2
+    PROVIDER -->|"pollinations"| POLL2
+    CF2 --> COMPOSITE2
+    GOOGLE2 --> COMPOSITE2
+    POLL2 --> COMPOSITE2
+    COMPOSITE2 --> SAVE2
+    SAVE2 --> REVIEW2
+    REVIEW2 --> OK
+    OK -->|"no — tweak prompt"| REGEN
+    REGEN --> PREVIEW
+    OK -->|"yes"| POST
+```
+
+**Posting slots (run publish-slot.js within ±15 min of each):**
+
+| Country | Slot 1 | Slot 2 | Slot 3 | Slot 4 |
+|---|---|---|---|---|
+| 🇫🇷 France | 07:30 CEST | 12:00 CEST | 19:00 CEST | — |
+| 🇮🇹 Italy | 07:30 CEST | 11:30 CEST | 15:30 CEST | 19:30 CEST |
+
+**Watermark files (assets/logos/):**
+
+| Country | File |
+|---|---|
+| FR | `FranceAujourdhui_Logo.png` |
+| IT | `vivere_in_italia_banner_logo.png` |
+
+---
+
+## 8. Engagement Metrics Scraper (was §7)
 
 Runs every hour at `:15`. Scrapes post engagement from the Facebook Graph API.
 
@@ -414,7 +476,7 @@ flowchart TD
 
 ---
 
-## 8. GitHub Actions Schedule
+## 9. GitHub Actions Schedule
 
 How the four workflows are staggered across each hour to avoid conflicts.
 
@@ -442,7 +504,7 @@ gantt
 
 ---
 
-## 9. Image Generation Providers
+## 10. Image Generation Providers
 
 How the multi-provider image generation system works.
 
@@ -479,7 +541,7 @@ flowchart LR
 
 ---
 
-## 10. Publish Score Formula
+## 11. Publish Score Formula
 
 How the pipeline decides which approved article to post at each slot.
 
