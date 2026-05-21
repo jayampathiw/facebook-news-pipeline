@@ -115,6 +115,7 @@ async function scrapePendingMetrics() {
   let skipped  = 0;
   const errors = [];
   const failedCountries = new Set();
+  const missingTokenCountries = new Set();
 
   for (const post of posts) {
     if (failedCountries.has(post.country)) { skipped++; continue; }
@@ -134,7 +135,11 @@ async function scrapePendingMetrics() {
 
     const token = process.env[`FB_ACCESS_TOKEN_${post.country}`];
     if (!token) {
-      errors.push({ id: post.id, error: `No token for country ${post.country}` });
+      if (!missingTokenCountries.has(post.country)) {
+        console.warn(`  ⚠ No FB token for ${post.country} — skipping (set FB_ACCESS_TOKEN_${post.country} to enable)`);
+        missingTokenCountries.add(post.country);
+      }
+      skipped++;
       continue;
     }
 
@@ -167,6 +172,9 @@ async function scrapePendingMetrics() {
     }
   }
 
+  if (missingTokenCountries.size) {
+    console.log(`  Countries skipped (no token): ${[...missingTokenCountries].join(', ')}`);
+  }
   console.log(`\nDone — ${recorded} new snapshot(s) recorded, ${skipped} skipped, ${errors.length} error(s).`);
   if (errors.length) {
     for (const e of errors) console.error(`  - ${e.id}: ${e.error}`);
