@@ -48,10 +48,13 @@ export const SOURCES = {
       { name: 'Vatican News',                url: 'https://www.vaticannews.va/it.rss.xml' },
       { name: 'La Gazzetta dello Sport',     url: 'https://www.gazzetta.it/rss/home.xml' },
       { name: 'Il Fatto Quotidiano',         url: 'https://www.ilfattoquotidiano.it/feed/' },
+      // A.10 additions — audience-alignment for 65+ Roman women (2026-05-21)
+      { name: 'Roma Today',                  url: 'https://www.romatoday.it/rss.xml' },
+      { name: 'ANSA Cronaca',                url: 'https://www.ansa.it/sito/notizie/cronaca/cronaca_rss.xml' },
       // Phase 2 (10k engaged-follower gate): Il Sole 24 Ore, Corriere del Veneto
       // Phase 3 (Month 6+): Dissapore, other vertical feeds (investigate when triggered)
     ],
-    newsapi: { query: 'Italia politica attualità', language: 'it' },
+    newsapi: { query: 'Italia attualità Roma salute famiglia pensioni', language: 'it' },
     captionLanguage: 'italiano',
     fbPageEnvKey: 'IT',
     pageName: 'Italia Oggi',

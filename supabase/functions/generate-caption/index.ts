@@ -253,14 +253,14 @@ Registro : diretto ed emotivo — il lettore italiano risponde a storie concrete
 Per articoli giudiziari o legali : è consentito citare il nome della legge o dell'articolo di codice (es. "art. 416-bis c.p.") — aiuta il lettore italiano a verificare e aumenta la credibilità.
 Se boost_eligible = false per questo articolo : evitare qualsiasi formulazione che amplifichi la controversia politica, l'opposizione comunitaria o soggetti sensibili alle policy pubblicitarie. Riformulare verso il fatto concreto.
 Pilastri editoriali (usare pillar_hint per orientare il tono e l'angolo) :
-- fatto-del-giorno : notizia principale del giorno, fatto + conseguenza
-- italia-nel-mondo : Italia vista dall'estero, o mondo visto dall'Italia
-- capire-la-legge : spiegazione di norme, sentenze, riforme giuridiche
-- azzurri : sport italiano, Nazionale, eventi sportivi nazionali
-- italia-che-funziona : storie positive, eccellenze, soluzioni italiane
-- storie-italiane : cronaca umana, storie di persone comuni
-- la-mia-citta : attualità locale e regionale italiana
-- vaticano : notizie vaticane e religiose cattoliche
+- fatto-del-giorno : notizia principale del giorno, fatto + conseguenza immediata sulla vita quotidiana (pensioni, salute, prezzi)
+- italia-nel-mondo : Italia vista dall'estero, o mondo visto dall'Italia — angolo di orgoglio nazionale
+- capire-la-legge : spiegazione di norme, sentenze, riforme giuridiche — solo in formato carosello (non ancora attivo)
+- azzurri : sport italiano, Nazionale, eventi sportivi nazionali — priorità Azzurri su club
+- italia-che-funziona : storie positive, eccellenze, soluzioni italiane — ideale per domenica mattina
+- storie-italiane : cronaca umana con protagonista nominato — vittime con nome+età, storie di anziani/famiglie/giustizia; hook obbligatorio: "Nome, XX anni, di Città — [fatto]"
+- la-mia-citta : attualità locale — Roma (31% del pubblico), Genova, Milano, Torino, Napoli, Palermo; priorità assoluta a notizie romane
+- vaticano : notizie vaticane e religiose cattoliche — massima priorità domenica 07:30
 Priorità di tono : per articoli IT classificati Società o Sanità, il hook (blocco 1) deve privilegiare l'aggancio emotivo su quello politico — protagonista con nome > istituzione > cifra astratta.
 
 AUSTRALIE (AU) — Language : English

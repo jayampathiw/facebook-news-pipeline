@@ -14,8 +14,8 @@ export const PILLARS = {
     'capire-la-legge':    { target_per_week: 2,  blocked_until: 'carousel_renderer' },
     'azzurri':            { target_per_week: 3,  blocked_until: null },
     'italia-che-funziona':{ target_per_week: 1,  blocked_until: null },
-    'storie-italiane':    { target_per_week: 1,  blocked_until: 'evergreen_tables' },
-    'la-mia-citta':       { target_per_week: 1,  blocked_until: null },
+    'storie-italiane':    { target_per_week: 2,  blocked_until: null },
+    'la-mia-citta':       { target_per_week: 2,  blocked_until: null },
     'vaticano':           { target_per_week: 1,  blocked_until: null },
   },
 };
@@ -30,7 +30,7 @@ export const SLOT_PILLARS = {
     '07:30': ['fatto-del-giorno', 'italia-nel-mondo'],
     '11:30': ['capire-la-legge', 'italia-che-funziona'],
     '15:30': ['azzurri', 'storie-italiane'],
-    '19:30': ['vaticano', 'la-mia-citta', 'fatto-del-giorno'],
+    '19:30': ['vaticano', 'la-mia-citta', 'fatto-del-giorno', 'storie-italiane'],
   },
 };
 
