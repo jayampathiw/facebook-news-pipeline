@@ -246,6 +246,7 @@ Piliers éditoriaux (utiliser pillar_hint pour guider le ton et l'angle) :
 - sondage-du-jour : opinion, sondages, questions de société
 - retour-sur : événements commémoratifs, anniversaires, "il y a X ans"
 - ma-ville-aujourdhui : actualité locale et régionale
+- sport-francais : football et rugby français, résultats OM/OGC Nice/RC Toulon/Stade Toulousain, Tour de France, Roland-Garros, sport régional PACA et Occitanie
 
 ITALIE (IT) — Lingua : italiano
 Registro : diretto ed emotivo — il lettore italiano risponde a storie concrete di persone, numeri reali e impatto immediato sulla vita quotidiana. Tono caldo ma autorevole, mai gridato. Parole vietate : "clamoroso", "shock", "bomba", "incredibile". Hashtag fisso : #ItaliaOggi.
@@ -260,12 +261,35 @@ Pilastri editoriali (usare pillar_hint per orientare il tono e l'angolo) :
 - storie-italiane : cronaca umana, storie di persone comuni
 - la-mia-citta : attualità locale e regionale italiana
 - vaticano : notizie vaticane e religiose cattoliche
+Priorità di tono : per articoli IT classificati Società o Sanità, il hook (blocco 1) deve privilegiare l'aggancio emotivo su quello politico — protagonista con nome > istituzione > cifra astratta.
 
 AUSTRALIE (AU) — Language : English
 Register: direct, factual, conversational. Sentence case titles. Fixed hashtag: #AustraliaToday.
 
 SUÈDE (SE) — Språk : svenska
-Registre : saklig, tydlig. Undvik onödiga superlativer. Fast hashtag : #SverigeIdag.`;
+Registre : saklig, tydlig. Undvik onödiga superlativer. Fast hashtag : #SverigeIdag.
+
+═══════════════════════════════════════════════════════════════
+SECTION 5 — PERSONAS AUDIENCE PAR PAGE
+═══════════════════════════════════════════════════════════════
+
+Ces personas définissent le lecteur type de chaque page. Ils guident le choix de l'angle, du ton et de l'accroche — en particulier pour le hook (bloc 1) et la question d'engagement (bloc 5). Ils n'autorisent pas à inventer des faits ni à prendre de positions politiques.
+
+FRANCE — FranceAujourdhui
+Profil : retraité(e)s et semi-retraité(e)s de la France méditerranéenne. Concentration géographique : Marseille (23%), Avignon (8%), Hyères (8%), Nice (8%), Perpignan (8%). Villes à gouvernance RN pour Nice et Perpignan — lectorat sensible à la sécurité locale et à l'identité régionale, sans pour autant être partisan.
+Valeurs dominantes : identité régionale et méditerranéenne, sécurité locale, pouvoir d'achat, justice/équité, économie locale et touristique, fierté du patrimoine.
+Ce qui résonne : sujets sur la Provence, la Côte d'Azur, l'Occitanie ; risques sanitaires en milieu méditerranéen ; justice locale (crimes, tribunaux, faits divers) ; économie du littoral (tourisme, immobilier, coût de la vie) ; météo et environnement méditerranéen ; culture régionale.
+Ce qui ne résonne pas : débats de politique parisienne entre partis d'initiés ; polémiques OTAN ou défense abstraite ; fiscalité complexe sans impact local direct ; contenus visant les moins de 40 ans en zone urbaine dense.
+Règle de pilier : pour un article local PACA/Occitanie, préférer le pilier "ma-ville-aujourdhui". Pour les faits divers judiciaires locaux, préférer "france-en-debat".
+Identité sportive : pour le lectorat PACA/Occitanie, le sport n'est pas du divertissement — c'est de l'identité régionale. L'OM est à Marseille ce que le RC Toulon est au Var : une fierté communautaire. Traiter les victoires comme des événements de fierté collective, les défaites comme un deuil partagé. Hook recommandé pour articles Sport : "L'OM [résultat] — Marseille [réaction émotionnelle collective]". Pour OGC Nice et RC Toulon, même logique de fierté locale. Pilier : sport-francais.
+
+ITALIE — ItaliaOggi
+Profil : femmes de 65 ans et plus, concentrées à Rome (31%), présentes dans toutes les grandes villes italiennes (Genova, Milan, Turin, Naples, Palerme). Génération sensible à la sécurité, à la santé et à la foi catholique.
+Valeurs dominantes : sécurité de la famille, santé (maladies chroniques, coûts médicaux), justice/injustice, fierté nationale, coût de la vie, foi catholique, solidarité intergénérationnelle.
+Ce qui résonne : victimes nommées avec prénom et âge ; angle "nonna/madre/famiglia" ; risques sanitaires concrets (médicaments, hôpitaux, maladies chroniques) ; crimes contre personnes âgées ou enfants ; hausses des prix alimentaires ou médicaux ; nouvelles du Vatican ; histoires de justice rendue ou déniée ; tragédies humaines avec protagoniste identifié.
+Ce qui ne résonne pas : mèmes partisans ou débats de couloir parlementaire ; géopolitique abstraite ; fiscalité complexe sans impact sur la pension ; culture tech ou jeunes urbains.
+Règle de ton : pour IT, si l'article peut être cadré via une personne nommée (victime, bénéficiaire, protagoniste), l'utiliser dans le bloc 1 plutôt qu'une institution.
+Emojis appropriés pour IT : 🙏 (solidarité, foi), ❤️ (famille, émotion), ⚠️ (alerte santé/sécurité), 🕊️ (décès/hommage). Éviter les emojis politiques (🗳️, 🏛️) pour les articles Société.`;
 
 const SEED_COMMENT_TEMPLATES: Record<string, { id: string; t: string }[]> = {
   FR: [

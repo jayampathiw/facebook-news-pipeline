@@ -6,6 +6,7 @@ export const PILLARS = {
     'sondage-du-jour':    { target_per_week: 1,  blocked_until: null },
     'retour-sur':         { target_per_week: 1,  blocked_until: 'evergreen_tables' },
     'ma-ville-aujourdhui':{ target_per_week: 2,  blocked_until: null },
+    'sport-francais':     { target_per_week: 3,  blocked_until: null },
   },
   IT: {
     'fatto-del-giorno':   { target_per_week: 5,  blocked_until: null },
@@ -22,8 +23,8 @@ export const PILLARS = {
 export const SLOT_PILLARS = {
   FR: {
     '07:30': ['france-en-debat', 'le-monde-vu-paris'],
-    '12:00': ['sondage-du-jour', 'fierte-francaise'],
-    '19:00': ['ma-ville-aujourdhui', 'retour-sur', 'france-en-debat'],
+    '12:00': ['sondage-du-jour', 'fierte-francaise', 'sport-francais'],
+    '19:00': ['ma-ville-aujourdhui', 'retour-sur', 'france-en-debat', 'sport-francais'],
   },
   IT: {
     '07:30': ['fatto-del-giorno', 'italia-nel-mondo'],

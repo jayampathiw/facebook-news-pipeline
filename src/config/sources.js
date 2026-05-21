@@ -12,12 +12,18 @@ export const SOURCES = {
       { name: 'Reporterre',  url: 'https://reporterre.net/spip.php?page=backend' },
       { name: 'Le Parisien', url: 'https://feeds.leparisien.fr/leparisien/rss' },
       { name: 'Bondy Blog',  url: 'https://www.bondyblog.fr/feed/' },
+      // A.8 additions — PACA/Occitanie regional feeds (audience-alignment, 2026-05-21)
+      { name: 'La Provence',  url: 'https://www.laprovence.com/arenes/une/rss.xml' },
+      { name: 'Nice-Matin',   url: 'https://www.nicematin.com/rss/une.xml' },
+      { name: 'Midi Libre',   url: 'https://www.midilibre.fr/rss/une.xml' },
+      // A.9 additions — sports feed for Layer 4 sport-francais pillar (2026-05-21)
+      { name: "L'Équipe",     url: 'https://www.lequipe.fr/rss/actu-haut.xml' },
       // Removed — 20 Minutes: Cloudfront 403 bot-block (verified 2026-05-20)
       // Removed — Actu.fr: RSS URL 404 (verified 2026-05-20)
       // Deferred — licensed/syndication cost exceeds free tier (D3a): AFP wire, Reuters FR,
       // Le Point (paywall API), L'Express (paywall API), Courrier International (licensed content)
     ],
-    newsapi: { query: 'France politique actualité', language: 'fr' },
+    newsapi: { query: 'France actualité région Provence Méditerranée', language: 'fr' },
     captionLanguage: 'français',
     fbPageEnvKey: 'FR',
     pageName: "France Aujourd'hui",
