@@ -2,12 +2,9 @@ import 'dotenv/config';
 import { SOURCES } from './config/sources.js';
 import { fetchRSSFeeds } from './fetchers/rss.js';
 import { fetchNewsAPI } from './fetchers/newsapi.js';
-import { saveArticles, getRecentArticleTitles, getRecentArticlesForClustering, getPillarWeeklyCounts } from './services/supabase.js';
-import { computePublishScore, computeEditorialScore } from './utils/publishScore.js';
-import { SLOTS } from './services/facebook.js';
+import { saveArticles, getRecentArticleTitles, getRecentArticlesForClustering } from './services/supabase.js';
 import { deduplicate, similarity, detectAndAnnotateClusters } from './utils/dedup.js';
 import { validateArticle } from './validators/contentValidator.js';
-import { classifyArticle } from './utils/criticality.js';
 
 const REQUIRED_ENV = ['SUPABASE_URL', 'SUPABASE_KEY'];
 const missing = REQUIRED_ENV.filter(k => !process.env[k]);
@@ -49,11 +46,8 @@ async function processCountry(country, config) {
     const check = validateArticle(article);
 
     if (check.valid) {
-      const { criticality, priority_score } = classifyArticle(article);
       validated.push({
         ...article,
-        criticality,
-        priority_score,
         ...(check.boostWarning && { boost_warning: true }),
         ...(check.boostEligible === false && { boost_eligible: false }),
       });
@@ -61,8 +55,7 @@ async function processCountry(country, config) {
       console.log(`  ⛔ Dropped (absolute): "${article.title}"`);
     } else {
       const status = check.severity === 'manual_review' ? 'manual_review' : 'blocked';
-      const { criticality, priority_score } = classifyArticle(article);
-      blocked.push({ ...article, status, blocked_reason: check.reason, criticality, priority_score });
+      blocked.push({ ...article, status, blocked_reason: check.reason });
       console.log(`  ⛔ ${status}: "${article.title}" — ${check.reason}`);
     }
   }
@@ -73,14 +66,6 @@ async function processCountry(country, config) {
   const clustered = validated.filter(a => a.cluster_size >= 2);
   if (clustered.length > 0) {
     console.log(`  Clusters detected: ${clustered.length} articles in ${new Set(clustered.map(a => a.cluster_id)).size} cluster(s)`);
-  }
-
-  const weeklyPillarCounts = await getPillarWeeklyCounts(country);
-  const now = new Date().toISOString();
-  for (const article of validated) {
-    article.pillar = article.content_signals?.pillar_hint ?? null;
-    article.publish_score = computePublishScore(article, weeklyPillarCounts, SLOTS[country] ?? []);
-    article.editorial_score = computeEditorialScore({ ...article, created_at: now });
   }
 
   const saved = await saveArticles(validated);
