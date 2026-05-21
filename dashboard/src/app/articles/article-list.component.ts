@@ -135,6 +135,12 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
           >Level {{ sortIcon('priority_score') }}</button>
           <button
             style="padding:3px 8px;border-radius:4px;cursor:pointer;border:none;font-size:11px;font-family:'Outfit',sans-serif;font-weight:500;transition:all .15s;"
+            [style.background]="sortField()==='editorial_score' ? 'rgba(99,102,241,.15)' : 'transparent'"
+            [style.color]="sortField()==='editorial_score' ? 'var(--ink-brand)' : 'var(--ink-text-2)'"
+            (click)="setSort('editorial_score')"
+          >Score {{ sortIcon('editorial_score') }}</button>
+          <button
+            style="padding:3px 8px;border-radius:4px;cursor:pointer;border:none;font-size:11px;font-family:'Outfit',sans-serif;font-weight:500;transition:all .15s;"
             [style.background]="sortField()==='created_at' ? 'rgba(99,102,241,.15)' : 'transparent'"
             [style.color]="sortField()==='created_at' ? 'var(--ink-brand)' : 'var(--ink-text-2)'"
             (click)="setSort('created_at')"
@@ -196,6 +202,9 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
                 <button style="width:90px;flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-text-3);text-align:left;background:none;border:none;cursor:pointer;padding:0;font-family:'Outfit',sans-serif;" (click)="setSort('priority_score')">
                   Level {{ sortIcon('priority_score') }}
                 </button>
+                <button style="width:52px;flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-text-3);text-align:right;background:none;border:none;cursor:pointer;padding:0;font-family:'Outfit',sans-serif;" (click)="setSort('editorial_score')">
+                  Score {{ sortIcon('editorial_score') }}
+                </button>
                 <span style="flex:1;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-text-3);">Article</span>
                 <button style="width:80px;flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-text-3);text-align:right;background:none;border:none;cursor:pointer;padding:0;font-family:'Outfit',sans-serif;" (click)="setSort('created_at')">
                   Date {{ sortIcon('created_at') }}
@@ -209,6 +218,7 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
                     class="article-row"
                     [class.selected]="isSelected(article.id)"
                     [style.border-left-color]="critColor(article.criticality)"
+                    [style.background-color]="editorialTierBg(article.editorial_score)"
                     (click)="openDetail(article)"
                   >
                     <!-- Checkbox -->
@@ -225,6 +235,14 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
                       @if (article.ai_caption) {
                         <span class="ink-badge ib-ai">AI ✓</span>
                       }
+                    </div>
+
+                    <!-- Score col (desktop) -->
+                    <div class="hidden sm:flex" style="width:52px;flex-shrink:0;align-items:center;justify-content:flex-end;">
+                      <span style="font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;"
+                            [style.color]="editorialTierColor(article.editorial_score)">
+                        {{ article.editorial_score ?? '—' }}
+                      </span>
                     </div>
 
                     <!-- Content -->
@@ -369,9 +387,10 @@ export class ArticleListComponent implements OnInit, OnDestroy {
 
     const field = this.sortField();
     const dir = this.sortDir() === 'asc' ? 1 : -1;
+    const numericFields = ['priority_score', 'editorial_score', 'publish_score'];
     items.sort((a, b) => {
-      const av = field === 'priority_score' ? (a as any)[field] : String((a as any)[field] ?? '');
-      const bv = field === 'priority_score' ? (b as any)[field] : String((b as any)[field] ?? '');
+      const av = numericFields.includes(field) ? ((a as any)[field] ?? 0) : String((a as any)[field] ?? '');
+      const bv = numericFields.includes(field) ? ((b as any)[field] ?? 0) : String((b as any)[field] ?? '');
       return av < bv ? -dir : av > bv ? dir : 0;
     });
     return items;
@@ -664,6 +683,20 @@ export class ArticleListComponent implements OnInit, OnDestroy {
   async signOut() {
     await this.supabase.signOut();
     this.router.navigate(['/login']);
+  }
+
+  editorialTierBg(score: number | null | undefined): string {
+    if (!score) return '';
+    if (score >= 100) return 'rgba(0, 204, 112, 0.07)';
+    if (score >= 60)  return 'rgba(255, 140, 0, 0.07)';
+    return '';
+  }
+
+  editorialTierColor(score: number | null | undefined): string {
+    if (!score) return 'var(--ink-text-3)';
+    if (score >= 100) return '#00cc70';
+    if (score >= 60)  return '#ff8c00';
+    return 'var(--ink-text-3)';
   }
 
   critColor(level: string): string {

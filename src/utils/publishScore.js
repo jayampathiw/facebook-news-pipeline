@@ -57,6 +57,14 @@ function recencyFactor(createdAt) {
   return Math.exp(-ageHours / 24);
 }
 
+export function computeEditorialScore(article) {
+  const base = article.priority_score ?? 25;
+  const googleTrendsBonus = (article.source ?? '').startsWith('Google Trends') ? 25 : 0;
+  const ageHours = (Date.now() - new Date(article.created_at ?? Date.now()).getTime()) / 3_600_000;
+  const recencyBonus = ageHours < 2 ? 15 : ageHours < 6 ? 10 : ageHours < 12 ? 5 : 0;
+  return base + googleTrendsBonus + recencyBonus;
+}
+
 export function computePublishScore(article, weeklyCounts, slots) {
   const critPriority = CRIT_PRIORITY[article.criticality] ?? 1;
   const slotFactor   = slotMatchFactor(article.pillar, article.country, slots);

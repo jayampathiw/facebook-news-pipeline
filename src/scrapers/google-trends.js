@@ -17,6 +17,7 @@ import { createClient } from '@supabase/supabase-js';
 import { classifyArticle } from '../utils/criticality.js';
 import { validateArticle } from '../validators/contentValidator.js';
 import { deduplicate, similarity } from '../utils/dedup.js';
+import { computeEditorialScore } from '../utils/publishScore.js';
 
 const FB_BASE = 'https://graph.facebook.com/v22.0';
 
@@ -154,10 +155,12 @@ async function run() {
 
       if (check.severity === 'absolute' || check.severity === 'manual_review') continue;
 
+      const editorial_score = computeEditorialScore({ ...article, priority_score, created_at: new Date().toISOString() });
       const row = {
         ...article,
         criticality,
         priority_score,
+        editorial_score,
         status:        check.valid ? 'pending' : 'blocked',
         boost_eligible: check.boostEligible !== false,
       };

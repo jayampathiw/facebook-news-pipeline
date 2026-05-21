@@ -1,4 +1,5 @@
-import { Component, Input, Output, EventEmitter, signal, OnDestroy } from '@angular/core';
+import { Component, Input, Output, EventEmitter, signal, OnDestroy, PLATFORM_ID, Inject } from '@angular/core';
+import { isPlatformBrowser } from '@angular/common';
 import { DatePipe } from '@angular/common';
 import { Article, SupabaseService } from '../core/supabase.service';
 
@@ -195,7 +196,103 @@ import { Article, SupabaseService } from '../core/supabase.service';
 
         <!-- Image Prompt -->
         @if (activeTab() === 3) {
+
+          <!-- Generate Image button — always visible -->
+          <div style="display:flex;gap:8px;">
+            <button class="btn-brand" style="flex:1;justify-content:center;gap:6px;"
+                    [disabled]="generatingImage() || !article.image_prompt"
+                    [title]="!article.image_prompt ? 'Generate caption first to get an image prompt' : ''"
+                    (click)="generateImage()">
+              @if (generatingImage()) {
+                <span class="loading loading-spinner loading-xs"></span>
+                Generating… (up to 30s)
+              } @else {
+                🖼 {{ article.generated_image_url ? 'Regenerate Image' : 'Generate Image' }}
+              }
+            </button>
+            @if (!article.image_prompt) {
+              <button class="btn-ink" style="gap:4px;" [disabled]="generating()" (click)="generate()">
+                @if (generating()) { <span class="loading loading-spinner loading-xs"></span> }
+                ✦ Generate Prompt First
+              </button>
+            }
+          </div>
+
+          <!-- Composite & download row — shown once a base image exists -->
+          @if (article.generated_image_url) {
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+              <button class="btn-ink" style="gap:6px;flex:1;justify-content:center;"
+                      [disabled]="compositing()"
+                      (click)="compositeImage()">
+                @if (compositing()) {
+                  <span class="loading loading-spinner loading-xs"></span> Compositing…
+                } @else {
+                  🎨 Composite (watermark + text)
+                }
+              </button>
+              @if (compositedDataUrl()) {
+                <a [href]="compositedDataUrl()!"
+                   [download]="'post-' + article.id.slice(0,8) + '.png'"
+                   class="btn-ink" style="text-decoration:none;gap:4px;">
+                  ⬇ Save PNG
+                </a>
+              }
+            </div>
+          }
+
+          <!-- Image preview: composited canvas result OR raw image with CSS overlay -->
+          @if (article.generated_image_url) {
+            @if (compositedDataUrl()) {
+              <div style="width:100%;border-radius:8px;overflow:hidden;background:var(--ink-raised);">
+                <img [src]="compositedDataUrl()!" style="width:100%;display:block;border-radius:8px;" alt="Composited post image" />
+              </div>
+            } @else {
+              <div style="width:100%;border-radius:8px;overflow:hidden;background:var(--ink-raised);min-height:280px;position:relative;display:flex;align-items:center;justify-content:center;">
+                @if (!imageLoaded() && !imageError()) {
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--ink-text-3);padding:40px;">
+                    <span class="loading loading-spinner" style="width:28px;height:28px;color:var(--ink-brand);"></span>
+                    <span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;">Loading image… (up to 60s)</span>
+                  </div>
+                }
+                @if (imageError()) {
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--ink-text-3);padding:40px;text-align:center;">
+                    <span style="font-size:28px;opacity:.3;">▦</span>
+                    <span style="font-size:11px;">Image URL expired — click Regenerate Image</span>
+                  </div>
+                }
+                @if (!imageError()) {
+                  <div style="position:relative;width:100%;">
+                    <img [src]="article.generated_image_url"
+                         [style.display]="imageLoaded() ? 'block' : 'none'"
+                         style="width:100%;display:block;border-radius:8px;"
+                         (load)="imageLoaded.set(true)"
+                         (error)="imageError.set(true)" />
+                    @if (article.image_headline && imageLoaded()) {
+                      <div style="position:absolute;top:0;left:0;right:0;padding:18px 14px 48px;background:linear-gradient(rgba(0,0,0,.65) 0%,transparent 100%);text-align:center;border-radius:8px 8px 0 0;">
+                        <span style="font-family:'Anton','Impact',serif;font-size:clamp(16px,5.5vw,26px);color:rgba(255,255,255,.95);letter-spacing:.04em;line-height:1.2;display:block;text-shadow:1px 1px 0 rgba(0,0,0,.8),-1px -1px 0 rgba(0,0,0,.8),1px -1px 0 rgba(0,0,0,.8),-1px 1px 0 rgba(0,0,0,.8);">
+                          {{ article.image_headline }}
+                        </span>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            }
+            @if (composeError()) {
+              <p style="font-size:11px;color:var(--ink-alert);text-align:center;">{{ composeError() }}</p>
+            }
+          }
+
+          <!-- Prompt details (only when caption has been generated) -->
           @if (article.image_prompt) {
+            <div style="border-top:1px solid var(--ink-border);"></div>
+            <div style="display:flex;justify-content:flex-end;">
+              <button class="btn-ink" style="height:28px;padding:0 10px;font-size:11px;gap:4px;" [disabled]="generating()" (click)="generate()">
+                @if (generating()) { <span class="loading loading-spinner loading-xs"></span> }
+                @else { ↻ }
+                Regenerate Prompt
+              </button>
+            </div>
             @if (article.image_headline) {
               <div>
                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
@@ -226,10 +323,7 @@ import { Article, SupabaseService } from '../core/supabase.service';
               </button>
             </div>
           } @else {
-            <div class="empty-state">
-              <div style="font-size:32px;opacity:.2;">▦</div>
-              <p style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;">No image prompt yet</p>
-            </div>
+            <p style="font-size:11px;color:var(--ink-text-3);text-align:center;letter-spacing:.05em;">Generate caption first to unlock image generation</p>
           }
         }
 
@@ -324,12 +418,21 @@ export class ArticleDetailComponent implements OnDestroy {
 
   tabs = ['Overview', 'Caption', 'SEO', 'Image', 'Signals'];
   activeTab = signal(0);
-  generating = signal(false);
-  posting = signal(false);
+  generating       = signal(false);
+  generatingImage  = signal(false);
+  imageLoaded      = signal(false);
+  imageError       = signal(false);
+  compositing      = signal(false);
+  compositedDataUrl = signal<string | null>(null);
+  composeError     = signal<string | null>(null);
+  posting          = signal(false);
   toast = signal<{ msg: string; ok: boolean } | null>(null);
   private toastTimer: any;
 
-  constructor(private supabase: SupabaseService) {}
+  constructor(
+    private supabase: SupabaseService,
+    @Inject(PLATFORM_ID) private platformId: object,
+  ) {}
 
   ngOnDestroy() {
     clearTimeout(this.toastTimer);
@@ -414,6 +517,128 @@ export class ArticleDetailComponent implements OnDestroy {
     } finally {
       this.generating.set(false);
     }
+  }
+
+  async generateImage() {
+    if (!this.article.image_prompt) {
+      this.showToast('Generate caption first — no image_prompt yet', false);
+      return;
+    }
+    this.generatingImage.set(true);
+    this.imageLoaded.set(false);
+    this.imageError.set(false);
+    this.compositedDataUrl.set(null);
+    this.composeError.set(null);
+    try {
+      const result = await this.supabase.generateImage(this.article.id);
+      this.article = { ...this.article, generated_image_url: result.url };
+      this.articleUpdated.emit(this.article);
+      this.showToast('Image generated ✓');
+    } catch (err: any) {
+      this.showToast(err.message, false);
+    } finally {
+      this.generatingImage.set(false);
+    }
+  }
+
+  async compositeImage() {
+    if (!isPlatformBrowser(this.platformId)) return;
+    const url = this.article.generated_image_url;
+    if (!url) return;
+
+    this.compositing.set(true);
+    this.composeError.set(null);
+    try {
+      const font = new FontFace('AntonPost', "url('/fonts/Anton-Regular.ttf')");
+      await font.load();
+      document.fonts.add(font);
+
+      const [baseImg, logoImg] = await Promise.all([
+        this.loadImg(url),
+        this.loadImg(this.logoPath()).catch(() => null as HTMLImageElement | null),
+      ]);
+
+      const w = baseImg.naturalWidth || 1080;
+      const h = baseImg.naturalHeight || 1080;
+
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d')!;
+      ctx.drawImage(baseImg, 0, 0, w, h);
+
+      const headline = this.article.image_headline ?? '';
+      if (headline) {
+        const lines = this.splitHeadline(headline);
+        const fontSize = Math.round(w * 0.082);
+        const lineHeight = Math.round(fontSize * 1.28);
+        const padV = Math.round(fontSize * 0.5);
+        const boxH = padV + lines.length * lineHeight + padV;
+
+        ctx.fillStyle = 'rgba(0,0,0,0.65)';
+        ctx.fillRect(0, 0, w, boxH);
+
+        ctx.font = `${fontSize}px AntonPost`;
+        ctx.textAlign = 'center';
+        ctx.lineJoin = 'round';
+        ctx.lineWidth = Math.round(fontSize * 0.12);
+        ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+        ctx.fillStyle = 'white';
+        lines.forEach((line, i) => {
+          const y = padV + Math.round(fontSize * 0.82) + i * lineHeight;
+          ctx.strokeText(line, w / 2, y);
+          ctx.fillText(line, w / 2, y);
+        });
+      }
+
+      if (logoImg) {
+        const logoW = Math.round(w * 0.15);
+        const logoH = Math.round(logoImg.naturalHeight * (logoW / logoImg.naturalWidth));
+        const margin = Math.round(w * 0.02);
+        ctx.globalAlpha = 0.7;
+        ctx.drawImage(logoImg, w - logoW - margin, h - logoH - margin, logoW, logoH);
+        ctx.globalAlpha = 1;
+      }
+
+      try {
+        this.compositedDataUrl.set(canvas.toDataURL('image/png'));
+      } catch {
+        this.composeError.set('CORS restriction — image cannot be composited from external URL. Try regenerating the image.');
+      }
+    } catch (err: any) {
+      this.composeError.set(err.message ?? 'Compositing failed');
+    } finally {
+      this.compositing.set(false);
+    }
+  }
+
+  private logoPath(): string {
+    const map: Record<string, string> = {
+      FR: '/logos/FranceAujourdhui_Logo.png',
+      IT: '/logos/vivere_in_italia_banner_logo.png',
+    };
+    return map[this.article.country] ?? `/logos/${this.article.country}_Logo.png`;
+  }
+
+  private loadImg(src: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
+
+  private splitHeadline(headline: string): string[] {
+    if (headline.length <= 20) return [headline];
+    const mid = Math.floor(headline.length / 2);
+    let before = -1, after = -1;
+    for (let i = mid; i >= 0; i--) { if (headline[i] === ' ') { before = i; break; } }
+    for (let i = mid; i < headline.length; i++) { if (headline[i] === ' ') { after = i; break; } }
+    if (before === -1 && after === -1) return [headline];
+    const split = (after !== -1 && (before === -1 || Math.abs(after - mid) <= Math.abs(before - mid))) ? after : before;
+    return [headline.slice(0, split), headline.slice(split + 1)];
   }
 
   copy(text: string) {

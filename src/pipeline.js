@@ -3,7 +3,7 @@ import { SOURCES } from './config/sources.js';
 import { fetchRSSFeeds } from './fetchers/rss.js';
 import { fetchNewsAPI } from './fetchers/newsapi.js';
 import { saveArticles, getRecentArticleTitles, getRecentArticlesForClustering, getPillarWeeklyCounts } from './services/supabase.js';
-import { computePublishScore } from './utils/publishScore.js';
+import { computePublishScore, computeEditorialScore } from './utils/publishScore.js';
 import { SLOTS } from './services/facebook.js';
 import { deduplicate, similarity, detectAndAnnotateClusters } from './utils/dedup.js';
 import { validateArticle } from './validators/contentValidator.js';
@@ -76,9 +76,11 @@ async function processCountry(country, config) {
   }
 
   const weeklyPillarCounts = await getPillarWeeklyCounts(country);
+  const now = new Date().toISOString();
   for (const article of validated) {
     article.pillar = article.content_signals?.pillar_hint ?? null;
     article.publish_score = computePublishScore(article, weeklyPillarCounts, SLOTS[country] ?? []);
+    article.editorial_score = computeEditorialScore({ ...article, created_at: now });
   }
 
   const saved = await saveArticles(validated);

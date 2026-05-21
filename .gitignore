@@ -8,3 +8,5 @@ supabase/supabase/
 dashboard/supabase/
 *:Zone.Identifier
 "New Text Document.txt"
+.vercel
+output/

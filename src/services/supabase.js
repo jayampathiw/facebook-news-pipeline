@@ -127,8 +127,8 @@ export async function getApprovedArticlesSortedByScore(country) {
     .from('articles')
     .select('*')
     .eq('status', 'approved')
-    .order('publish_score', { ascending: false, nullsFirst: false })
-    .order('priority_score', { ascending: false });
+    .order('editorial_score', { ascending: false, nullsFirst: false })
+    .order('publish_score',   { ascending: false, nullsFirst: false });
   if (country) query = query.eq('country', country);
   const { data, error } = await query;
   if (error) throw error;

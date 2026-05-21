@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { createClient } from '@supabase/supabase-js';
-import { computePublishScore } from '../utils/publishScore.js';
+import { computePublishScore, computeEditorialScore } from '../utils/publishScore.js';
 import { SLOTS } from '../services/facebook.js';
 import { getPillarWeeklyCounts } from '../services/supabase.js';
 
@@ -43,11 +43,12 @@ async function run() {
   for (const article of articles) {
     const slots = SLOTS[article.country] ?? [];
     const weeklyCounts = weeklyCountsByCountry[article.country] ?? {};
-    const publish_score = computePublishScore(article, weeklyCounts, slots);
+    const publish_score   = computePublishScore(article, weeklyCounts, slots);
+    const editorial_score = computeEditorialScore(article);
 
     const { error: updateError } = await supabase
       .from('articles')
-      .update({ publish_score })
+      .update({ publish_score, editorial_score })
       .eq('id', article.id);
 
     if (updateError) {

@@ -14,6 +14,7 @@ export interface Article {
   criticality: 'breaking' | 'alert' | 'trending' | 'standard';
   priority_score: number;
   published_at: string | null;
+  posted_at: string | null;
   created_at: string;
   ai_caption: { intro: string; question: string; cta: string } | null;
   fb_post_id: string | null;
@@ -38,6 +39,8 @@ export interface Article {
   cluster_size: number;
   pillar: string | null;
   publish_score: number | null;
+  editorial_score: number | null;
+  generated_image_url: string | null;
   tags?: string[];
   hashtags?: string[];
 }
@@ -207,7 +210,26 @@ export class SupabaseService {
       .order('posted_at', { ascending: false })
       .limit(limit);
     if (error) throw error;
-    return (data ?? []).map(a => ({ ...a, post_metrics: a.post_metrics ?? [] })) as ArticleWithMetrics[];
+    return (data ?? []).map(a => ({ ...a, post_metrics: a.post_metrics ?? [] })) as unknown as ArticleWithMetrics[];
+  }
+
+  async generateImage(articleId: string): Promise<{ url: string }> {
+    const session = await this.getSession();
+    const token = session?.access_token ?? environment.supabaseAnonKey;
+    const res = await fetch(`${environment.supabaseUrl}/functions/v1/generate-image`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'apikey': environment.supabaseAnonKey,
+      },
+      body: JSON.stringify({ article_id: articleId }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: res.statusText }));
+      throw new Error(body.error ?? `Image generation failed (${res.status})`);
+    }
+    return res.json();
   }
 
   async generateCaptions(articleIds: string[]): Promise<{ processed: number; results: { id: string; seo_title: string }[]; errors?: { id: string; error: string }[] }> {
