@@ -1,8 +1,9 @@
 name: Slot Publisher
 
 on:
-  schedule:
-    - cron: '*/15 * * * *'   # every 15 minutes
+  # Auto-posting is parked. Re-enable by uncommenting the schedule block below.
+  # schedule:
+  #   - cron: '*/15 * * * *'   # every 15 minutes
   workflow_dispatch:
 
 jobs:

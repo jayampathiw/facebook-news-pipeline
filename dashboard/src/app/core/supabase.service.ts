@@ -10,7 +10,7 @@ export interface Article {
   url: string;
   summary: string | null;
   country: string;
-  status: 'pending' | 'approved' | 'rejected' | 'posted' | 'failed';
+  status: 'pending' | 'approved' | 'rejected' | 'posted' | 'failed' | 'blocked' | 'manual_review';
   criticality: 'breaking' | 'alert' | 'trending' | 'standard';
   priority_score: number;
   published_at: string | null;
@@ -43,6 +43,8 @@ export interface Article {
   generated_image_url: string | null;
   tags?: string[];
   hashtags?: string[];
+  recommended_format?: 'image' | 'video' | 'poll' | 'carousel' | null;
+  post_format?: 'image' | 'video' | 'poll' | 'carousel' | null;
 }
 
 export interface PostMetric {
@@ -83,6 +85,8 @@ export interface ArticleStats {
   rejected: number;
   posted: number;
   failed: number;
+  blocked: number;
+  manual_review: number;
   total: number;
 }
 
@@ -137,13 +141,18 @@ export class SupabaseService {
   async getStats(): Promise<ArticleStats> {
     const { data, error } = await this.client.from('articles').select('status');
     if (error) throw error;
-    const stats: ArticleStats = { pending: 0, approved: 0, rejected: 0, posted: 0, failed: 0, total: 0 };
+    const stats: ArticleStats = { pending: 0, approved: 0, rejected: 0, posted: 0, failed: 0, blocked: 0, manual_review: 0, total: 0 };
     for (const row of data ?? []) {
       const s = row.status as keyof ArticleStats;
       if (s in stats) (stats[s] as number)++;
       stats.total++;
     }
     return stats;
+  }
+
+  async updateArticleFields(id: string, fields: Partial<Article>) {
+    const { error } = await this.client.from('articles').update(fields).eq('id', id);
+    if (error) throw error;
   }
 
   async updateArticleStatus(id: string, status: Article['status']) {
@@ -164,23 +173,6 @@ export class SupabaseService {
   async updateArticlesStatus(ids: string[], status: Article['status']) {
     const { error } = await this.client.from('articles').update({ status }).in('id', ids);
     if (error) throw error;
-  }
-
-  async selectTopNews(country: string): Promise<{ selected_ids: string[] }> {
-    const session = await this.getSession();
-    const token = session?.access_token ?? environment.supabaseAnonKey;
-    const url = `${environment.supabaseUrl}/functions/v1/generate-caption`;
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-        'apikey': environment.supabaseAnonKey,
-      },
-      body: JSON.stringify({ action: 'select_top_news', ...(country ? { country } : {}) }),
-    });
-    if (!res.ok) throw new Error(await res.text());
-    return res.json();
   }
 
   async postToFacebook(articleIds: string[]): Promise<{

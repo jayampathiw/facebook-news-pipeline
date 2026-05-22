@@ -121,12 +121,13 @@ export async function getPillarWeeklyCounts(country) {
   return counts;
 }
 
-export async function getApprovedArticlesSortedByScore(country) {
+export async function getPendingArticlesSortedByScore(country) {
   const supabase = getClient();
   let query = supabase
     .from('articles')
     .select('*')
-    .eq('status', 'approved')
+    .eq('status', 'pending')
+    .not('ai_caption', 'is', null)
     .order('editorial_score', { ascending: false, nullsFirst: false })
     .order('publish_score',   { ascending: false, nullsFirst: false });
   if (country) query = query.eq('country', country);

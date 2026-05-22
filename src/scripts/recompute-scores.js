@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { computePublishScore, computeEditorialScore } from '../utils/publishScore.js';
 import { SLOTS } from '../services/facebook.js';
 import { getPillarWeeklyCounts } from '../services/supabase.js';
+import { tagArticle } from '../utils/tagArticle.js';
 
 const REQUIRED_ENV = ['SUPABASE_URL', 'SUPABASE_KEY'];
 const missing = REQUIRED_ENV.filter(k => !process.env[k]);
@@ -19,7 +20,7 @@ async function run() {
   const { data: articles, error } = await supabase
     .from('articles')
     .select('*')
-    .in('status', ['pending', 'approved']);
+    .eq('status', 'pending');
 
   if (error) {
     console.error('Failed to fetch articles:', error.message);
@@ -27,7 +28,7 @@ async function run() {
   }
 
   if (!articles?.length) {
-    console.log('[recompute-scores] No pending/approved articles to recompute');
+    console.log('[recompute-scores] No pending articles to recompute');
     return;
   }
 
@@ -45,10 +46,11 @@ async function run() {
     const weeklyCounts = weeklyCountsByCountry[article.country] ?? {};
     const publish_score   = computePublishScore(article, weeklyCounts, slots);
     const editorial_score = computeEditorialScore(article);
+    const tags            = tagArticle(article);
 
     const { error: updateError } = await supabase
       .from('articles')
-      .update({ publish_score, editorial_score })
+      .update({ publish_score, editorial_score, tags })
       .eq('id', article.id);
 
     if (updateError) {

@@ -44,10 +44,9 @@ src/
 ├── validators/contentValidator.js   ← multi-language content policy
 ├── scripts/
 │   ├── generate-caption.js          ← CLI: generate all fields for 1+ article IDs
-│   ├── generate-captions-batch.js   ← batch: all pending without captions
 │   ├── generate-image.js            ← image-only regeneration for 1+ IDs
 │   ├── preview-images.js            ← generate + save composited images locally (no posting)
-│   ├── publish-slot.js              ← post highest-scored approved article at slot time
+│   ├── publish-slot.js              ← post highest-scored pending article at slot time (cron parked)
 │   ├── recompute-scores.js          ← recompute publish_score for all articles
 │   └── save-article-content.js      ← DB writer (used by Claude Code skills)
 └── pipeline.js                      ← main orchestrator
@@ -74,8 +73,8 @@ node src/pipeline.js
 # Generate AI content for specific articles (by ID)
 node src/scripts/generate-caption.js <id1> <id2> ...
 
-# Batch generate for all pending articles without captions
-node src/scripts/generate-captions-batch.js [--country FR|IT]
+# (Batch caption generation is no longer a CLI script — use the ✦ Generate button in the dashboard,
+#  which calls the Deno edge function. The cron job at xx:30 only recomputes scores + tags.)
 
 # Regenerate image prompt only
 node src/scripts/generate-image.js <id1> <id2> ...
@@ -84,7 +83,7 @@ node src/scripts/generate-image.js <id1> <id2> ...
 node src/scripts/preview-images.js <id1> <id2> ...
 # → saves to output/previews/<id>.png
 
-# Post highest-scored approved article at the current slot window
+# Post highest-scored pending article at the current slot window (auto-cron is disabled)
 node src/scripts/publish-slot.js
 # Must run within ±15 min of a slot: FR 07:30/12:00/19:00, IT 07:30/11:30/15:30/19:30 CEST
 
@@ -126,17 +125,19 @@ For the Supabase edge function, `ANTHROPIC_KEY` is stored as a Supabase secret (
 **Auth:** Supabase email/password login (protected by `auth.guard.ts`).
 
 **Features:**
-- Article list with filtering by status (pending/approved/rejected/posted/failed) and country
-- Sort by any column header (Level sorts by numeric criticality priority)
-- Stats cards (Breaking / Alert / Trending / Standard counts) — clickable to filter
-- Row actions: **Generate** (calls edge function to create AI content), **Delete**
-- Article detail dialog with four tabs: Overview, Caption, SEO, Image Prompt
-  - Overview tab shows article ID with one-click copy
-  - Caption tab shows intro / question / CTA
-  - SEO tab shows seo_title and seo_description
-  - Image Prompt tab shows formatted_image_prompt ready to paste into Midjourney/DALL-E
-- Approve / Reject buttons in the dialog
-- Batch operations: select multiple rows → batch approve, reject, or delete
+- Article list with filtering by status (pending / posted / failed / blocked / manual_review) and country
+- Default sort = `publish_score` DESC. Cohort-fit articles surface at the top.
+- Row tint encodes criticality (red=breaking, orange=alert, blue=trending, white=standard). Rows tagged `off_target` are dimmed to 55% opacity.
+- Up to 3 ranked tag chips per row (`+N` chip if more): off_target / patriotic / health / justice / prices / region / sport / social.
+- Stats cards: Pending / Posted / Blocked / Failed — clickable to filter.
+- Row actions: **Generate** (calls edge function to create AI content), **Delete**.
+- Article detail dialog tabs: Overview, Caption, SEO, Image, Signals.
+  - Overview shows ID with copy, Priority Score, Post format dropdown (Claude-suggested, human-editable), all tags (no cap).
+  - Caption tab shows intro / question / CTA.
+  - SEO tab shows seo_title and seo_description.
+  - Image tab shows formatted_image_prompt ready for Midjourney/DALL-E.
+- Footer actions: ✦ Generate, 📤 Post to Facebook (enabled only when `status==='pending' && ai_caption != null`), ✓ Mark Posted, Close. **No Approve/Reject** — pending → posted directly.
+- Batch operations: select multiple rows → batch Generate, Post, Mark Posted, Delete.
 
 **Deploy:** `cd dashboard && vercel --prod`
 
@@ -226,13 +227,14 @@ Articles in Supabase can have these `status` values:
 
 | Status | Meaning |
 |---|---|
-| `pending` | Fetched, AI caption generated, awaiting review |
-| `approved` | Reviewed and approved, ready to post |
-| `rejected` | Not selected for posting |
+| `pending` | Fetched and awaiting review/posting. Generate captions via ✦ in the dashboard, then Post directly. |
 | `posted` | Published to Facebook |
 | `failed` | Posting to Facebook failed |
+| `blocked` | Validator blocked the article (content policy) |
+| `manual_review` | Validator flagged the article for human review |
+| `approved` / `rejected` | **Legacy** — these enum values still exist in the DB for historical rows but are no longer produced by the pipeline or dashboard. |
 
-Articles older than 7 days with status `pending` or `rejected` are automatically deleted by the `delete_old_articles()` SQL function.
+Articles older than 7 days with status `pending` are automatically deleted by the `delete_old_articles()` SQL function.
 
 ---
 
@@ -245,6 +247,9 @@ Articles older than 7 days with status `pending` or `rejected` are automatically
 | `seo_description` | ≤160 chars, with CTA, in article's target language |
 | `image_prompt` | Raw cinematic prompt from Claude |
 | `formatted_image_prompt` | `[PROMPT]/[TEXT OVERLAY]/[OUTPUT]` — paste into Midjourney/DALL-E |
+| `recommended_format` | Claude's suggestion: `image` / `video` / `poll` / `carousel`. Read-only. |
+| `post_format` | Human-confirmed format (defaults to `recommended_format`, editable in dashboard). |
+| `tags` | Array of auto-applied tags from `src/utils/tagArticle.js`: off_target, patriotic, health, justice, prices, region, sport, social. |
 
 ---
 

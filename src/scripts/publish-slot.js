@@ -6,7 +6,7 @@ import FormData from 'form-data';
 import axios from 'axios';
 import { createClient } from '@supabase/supabase-js';
 import { SLOTS, logBoostEligibleWindowStart } from '../services/facebook.js';
-import { getApprovedArticlesSortedByScore, getFirstBoostIneligiblePostedIT } from '../services/supabase.js';
+import { getPendingArticlesSortedByScore, getFirstBoostIneligiblePostedIT } from '../services/supabase.js';
 import { nearestSlot } from '../utils/publishScore.js';
 import { compositeImage } from '../utils/imageComposite.js';
 const FB_BASE = 'https://graph.facebook.com/v22.0';
@@ -52,9 +52,9 @@ async function run() {
 }
 
 async function publishForCountry(country, slotTarget) {
-  const articles = await getApprovedArticlesSortedByScore(country);
+  const articles = await getPendingArticlesSortedByScore(country);
   if (!articles.length) {
-    console.log(`[${country}] No approved articles`);
+    console.log(`[${country}] No pending articles with captions`);
     return;
   }
 

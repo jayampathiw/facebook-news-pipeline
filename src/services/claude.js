@@ -116,6 +116,12 @@ CONTENT_SIGNALS — champs à remplir systématiquement :
 - fr_it_stake_first_sentence (bool) : true si la première phrase de l'intro répond à "qu'est-ce que ça change pour [pays] ?"
 - pillar_hint (string | null) : pilier éditorial le plus pertinent pour cet article (voir Section 4 pour la liste par pays)
 
+RECOMMENDED_FORMAT (string, obligatoire) : format Facebook recommandé pour cet article. Valeurs : "image" | "video" | "poll" | "carousel".
+- "image" — défaut. La grande majorité des articles d'actualité.
+- "video" — histoire à fort potentiel visuel ou émotionnel (tragédie nommée, moment sportif dramatique, cérémonie, événement météo).
+- "poll" — l'article divise naturellement les lecteurs en deux camps ("Faut-il interdire X ?", débat binaire clair). Aligné avec le pilier FR sondage-du-jour.
+- "carousel" — explication multi-points, "5 choses à savoir", décryptage juridique. Aligné avec le pilier IT capire-la-legge.
+
 FORMAT DE RÉPONSE — CAPTION :
 {
   "intro": "[blocs 1 à 4 : hook + contexte + détails + enjeux, avec \\n pour les sauts de ligne entre paragraphes]",
@@ -125,6 +131,7 @@ FORMAT DE RÉPONSE — CAPTION :
   "seed_comment": "[template rempli avec topic_noun]",
   "seed_comment_template_id": "fr_03",
   "story_category": "Société",
+  "recommended_format": "image",
   "content_signals": {
     "binary_frame": true,
     "poll_fit_score": 4,
@@ -144,6 +151,7 @@ EXEMPLE COMPLET — français, économie :
   "seed_comment": "💬 Et vous ? la hausse du SMIC — votre réaction en commentaire 👇",
   "seed_comment_template_id": "fr_01",
   "story_category": "Société",
+  "recommended_format": "poll",
   "content_signals": {
     "binary_frame": false,
     "poll_fit_score": 4,
@@ -331,7 +339,7 @@ Structure du post (dans l'ordre, sans labels visibles dans le texte) :
 8. Hashtags (max 5, inline à la fin)
 
 JSON attendu :
-{"intro":"[blocs 1-4]","question":"[bloc 5]","cta":"[blocs 6-7 + hashtags]","hashtags":["#Tag1","#Tag2","#Tag3"],"seed_comment":"[template rempli]","seed_comment_template_id":"[id du template]","story_category":"[Politique|Société|Sport|Culture|International|Santé|Environnement]","content_signals":{"binary_frame":true,"poll_fit_score":3,"protagonist_named":"Dupont","best_format":"post","fr_it_stake_first_sentence":true,"pillar_hint":"france-en-debat"}}
+{"intro":"[blocs 1-4]","question":"[bloc 5]","cta":"[blocs 6-7 + hashtags]","hashtags":["#Tag1","#Tag2","#Tag3"],"seed_comment":"[template rempli]","seed_comment_template_id":"[id du template]","story_category":"[Politique|Société|Sport|Culture|International|Santé|Environnement]","recommended_format":"[image|video|poll|carousel]","content_signals":{"binary_frame":true,"poll_fit_score":3,"protagonist_named":"Dupont","best_format":"post","fr_it_stake_first_sentence":true,"pillar_hint":"france-en-debat"}}
 
 Templates éligibles pour le seed_comment (choisir un parmi ces IDs, remplir {topic_noun} en ${captionLanguage}) :
 ${pickEligibleTemplates(article.country, recentSeedTemplateIds).map(t => `[${t.id}] "${t.t}"`).join('\n')}
@@ -359,6 +367,7 @@ Résumé : ${summary}`,
       seed_comment: '💬 Et vous, qu\'en pensez-vous ? Est-ce que cette nouvelle vous surprend ? Répondez en commentaire — on lit tout. 👇',
       seed_comment_template_id: null,
       story_category: 'Société',
+      recommended_format: 'image',
       content_signals: {},
     };
   }

@@ -28,18 +28,60 @@ const PAGE_HASHTAG: Record<string, string> = {
   IT: '#ItaliaOggi',
 };
 
+// Tag patterns — verbatim copy of src/utils/tagArticle.js.
+// Both copies must stay in sync; the verification step in the plan diffs them.
+
 const PATRIOTIC_PATTERN = /\b(victoire|victory|vittoria|seger|champion|médaille|medaglia|medalj|medal|award|prix|premio|pris|record|exploit|succès|successo|framgång|fierté|pride|orgoglio|stolthet|historique|historico|historisk|first\s+ever|premier\s+(français|italian)|nationale?)\b/i;
 
-const SOCIAL_PATTERN = /\b(retraite|pension|pensionné|retraité|pensionato|pensionista|ålderspension|santé|hôpital|maladie|cancer|médicament|salute|ospedale|malattia|cura|hälsa|sjukhus|logement|loyer|immobilier|appartement|alloggio|affitto|bostad|hyra|emploi|chômage|licenciement|salaire|lavoro|disoccupazione|stipendio|arbete|lön|inflation|pouvoir\s+d.achat|coût\s+de\s+la\s+vie|economia|tasse|ekonomi|famille|enfant|parent|scuola|familj|barn|skola)\b/i;
+const SOCIAL_PATTERN = /\b(retraite|pension|pensionné|retraité|pensionato|pensionista|ålderspension|logement|loyer|immobilier|appartement|alloggio|affitto|bostad|hyra|emploi|chômage|licenciement|salaire|lavoro|disoccupazione|stipendio|arbete|lön|famille|enfant|parent|scuola|familj|barn|skola)\b/i;
 
-function tagArticle(a: { criticality: string; title: string; summary: string | null }): string[] {
+const HEALTH_PATTERN = /\b(salute|sanitari[oa]?|sanitarie|malatt[ia]|ospedale|medic[oi]|farmac[io]|vaccin[oi]?|cura|santé|sanitaire|hôpital|maladie|cancer|médicament|hälsa|sjukhus)\b/i;
+
+const PRICES_PATTERN = /\b(rincaro|prezzi|prezzo|bollett[ea]|spesa|carovita|povert[àa]|pension[ei]|pouvoir\s+d.achat|coût\s+de\s+la\s+vie|hausse|inflation|economia|tasse|ekonomi)\b/i;
+
+const JUSTICE_PATTERN = /\b(giustizia|ingiustizia|vittima|truffa|truffe|tribunale|condann[ao]|omicidi[io]?|violenza|sicurezza|justice|victime|tribunal|condamn[eé]e?|meurtre|agression)\b/i;
+
+const SPORT_PATTERN = /\b(football|rugby|tennis|cyclisme|ligue\s+1|serie\s+a|top\s+14|tour\s+de\s+france|roland[-\s]garros|champions\s+league|coupe\s+du\s+monde|coppa\s+del\s+mondo|nazionale|azzurri|équipe\s+de\s+france|les\s+bleus|olympique|PSG|\bOM\b|OGC\s+Nice|RC\s+Toulon|Stade\s+Toulousain|Juventus|Inter|Milan|Napoli)\b/i;
+
+const OFF_TARGET_PATTERN = /\b(OTAN|NATO|vertice\s+NATO|défense\s+europ|spese\s+militari|geopolitica|geopolitique|fiscalité\s+d.entreprise|tassa\s+di\s+gruppo|imposte\s+societarie|déficit\s+structurel|debito\s+pubblico\s+strutturale|riforma\s+fiscale\s+complessa)\b/i;
+
+const FR_PLACE_NAMES = /\b(Paris|Lyon|Marseille|Toulouse|Nice|Nantes|Strasbourg|Montpellier|Bordeaux|Lille|Rennes|Toulon|Avignon|Hyères|Perpignan|Aix[-\s]en[-\s]Provence|Provence|Côte\s+d['']Azur|Occitanie|PACA)\b/i;
+
+const IT_PLACE_NAMES = /\b(Roma|Milano|Napoli|Torino|Palermo|Genova|Bologna|Firenze|Bari|Catania|Venezia|Verona|Lazio|Lombardia|Campania|Sicilia|Veneto)\b/i;
+
+const REGIONAL_SOURCES = new Set([
+  'La Provence', 'Nice-Matin', 'Midi Libre',
+  'Roma Today', 'ANSA Cronaca',
+  'Il Resto del Carlino', 'Il Messaggero', 'Il Secolo XIX', 'La Gazzetta del Mezzogiorno',
+]);
+
+const SPORT_SOURCES = new Set([
+  "L'Équipe",
+  'La Gazzetta dello Sport',
+]);
+
+function tagArticle(a: { title: string; summary: string | null; source?: string; country?: string; story_category?: string }): string[] {
   const tags: string[] = [];
-  if (a.criticality === 'breaking') tags.push('breaking');
-  if (a.criticality === 'alert')    tags.push('alert');
-  if (a.criticality === 'trending') tags.push('trending');
-  const text = `${a.title} ${a.summary ?? ''}`;
+  const text = `${a.title || ''} ${a.summary ?? ''}`;
+  const source = a.source || '';
+  const country = a.country;
+
+  if (OFF_TARGET_PATTERN.test(text)) tags.push('off_target');
   if (PATRIOTIC_PATTERN.test(text)) tags.push('patriotic');
-  if (SOCIAL_PATTERN.test(text))    tags.push('social');
+  if (HEALTH_PATTERN.test(text))    tags.push('health');
+  if (JUSTICE_PATTERN.test(text))   tags.push('justice');
+  if (PRICES_PATTERN.test(text))    tags.push('prices');
+
+  const placeRegex = country === 'FR' ? FR_PLACE_NAMES
+                   : country === 'IT' ? IT_PLACE_NAMES
+                   : null;
+  const hasPlace = placeRegex && placeRegex.test(text);
+  if (REGIONAL_SOURCES.has(source) || hasPlace) tags.push('region');
+
+  if (SPORT_SOURCES.has(source) || a.story_category === 'Sport' || SPORT_PATTERN.test(text)) tags.push('sport');
+
+  if (SOCIAL_PATTERN.test(text)) tags.push('social');
+
   return tags;
 }
 
@@ -137,6 +179,12 @@ CONTENT_SIGNALS — champs à remplir systématiquement :
 - fr_it_stake_first_sentence (bool) : true si la première phrase de l'intro répond à "qu'est-ce que ça change pour [pays] ?"
 - pillar_hint (string | null) : pilier éditorial le plus pertinent pour cet article (voir Section 4 pour la liste par pays)
 
+RECOMMENDED_FORMAT (string, obligatoire) : format Facebook recommandé pour cet article. Valeurs : "image" | "video" | "poll" | "carousel".
+- "image" — défaut. La grande majorité des articles d'actualité.
+- "video" — histoire à fort potentiel visuel ou émotionnel (tragédie nommée, moment sportif dramatique, cérémonie, événement météo).
+- "poll" — l'article divise naturellement les lecteurs en deux camps ("Faut-il interdire X ?", débat binaire clair). Aligné avec le pilier FR sondage-du-jour.
+- "carousel" — explication multi-points, "5 choses à savoir", décryptage juridique. Aligné avec le pilier IT capire-la-legge.
+
 FORMAT DE RÉPONSE — CAPTION :
 {
   "intro": "[blocs 1 à 4 : hook + contexte + détails + enjeux, avec \\n pour les sauts de ligne entre paragraphes]",
@@ -146,6 +194,7 @@ FORMAT DE RÉPONSE — CAPTION :
   "seed_comment": "[template rempli avec topic_noun]",
   "seed_comment_template_id": "fr_03",
   "story_category": "Société",
+  "recommended_format": "image",
   "content_signals": {
     "binary_frame": true,
     "poll_fit_score": 4,
@@ -165,6 +214,7 @@ EXEMPLE COMPLET — français, économie :
   "seed_comment": "💬 Et vous ? la hausse du SMIC — votre réaction en commentaire 👇",
   "seed_comment_template_id": "fr_01",
   "story_category": "Société",
+  "recommended_format": "poll",
   "content_signals": {
     "binary_frame": false,
     "poll_fit_score": 4,
@@ -383,7 +433,7 @@ Structure du post (dans l'ordre, sans labels visibles dans le texte) :
 8. Hashtags (max 5, inline à la fin)
 
 JSON attendu :
-{"intro":"[blocs 1-4]","question":"[bloc 5]","cta":"[blocs 6-7 + hashtags]","hashtags":["#Tag1","#Tag2","#Tag3"],"seed_comment":"[template rempli]","seed_comment_template_id":"[id du template]","story_category":"[Politique|Société|Sport|Culture|International|Santé|Environnement]","content_signals":{"binary_frame":true,"poll_fit_score":3,"protagonist_named":"Dupont","best_format":"post","fr_it_stake_first_sentence":true,"pillar_hint":"france-en-debat"}}
+{"intro":"[blocs 1-4]","question":"[bloc 5]","cta":"[blocs 6-7 + hashtags]","hashtags":["#Tag1","#Tag2","#Tag3"],"seed_comment":"[template rempli]","seed_comment_template_id":"[id du template]","story_category":"[Politique|Société|Sport|Culture|International|Santé|Environnement]","recommended_format":"[image|video|poll|carousel]","content_signals":{"binary_frame":true,"poll_fit_score":3,"protagonist_named":"Dupont","best_format":"post","fr_it_stake_first_sentence":true,"pillar_hint":"france-en-debat"}}
 
 Templates éligibles pour le seed_comment (choisir un parmi ces IDs, remplir {topic_noun} en ${captionLanguage}) :
 ${pickEligibleTemplates(article.country, recentSeedTemplateIds).map((t: { id: string; t: string }) => `[${t.id}] "${t.t}"`).join('\n')}
@@ -491,6 +541,11 @@ Summary: ${summary}`,
     console.error(`image_headline appears English: "${imageHeadline}" (lang: ${captionLanguage}) — regenerate via generate-image.js`);
   }
 
+  const allowedFormats = new Set(['image', 'video', 'poll', 'carousel']);
+  const recommendedFormat = allowedFormats.has(captionData.recommended_format)
+    ? captionData.recommended_format
+    : 'image';
+
   return {
     ai_caption: { intro: captionData.intro || '', question: captionData.question || '', cta: captionData.cta || '' },
     seo_title: seo.seo_title,
@@ -503,6 +558,8 @@ Summary: ${summary}`,
     story_category: captionData.story_category || null,
     hashtags: Array.isArray(captionData.hashtags) ? captionData.hashtags : [],
     content_signals: captionData.content_signals ?? {},
+    recommended_format: recommendedFormat,
+    post_format: recommendedFormat,
   };
 }
 
@@ -536,81 +593,6 @@ async function handleRequest(req: Request): Promise<Response> {
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  if (body.action === 'select_top_news') {
-    const country: string | undefined = body.country || undefined;
-
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL')!,
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
-    );
-
-    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
-    let dbQuery = supabase
-      .from('articles')
-      .select('id, title, summary, criticality, country, source, tags, status')
-      .in('status', ['pending', 'approved'])
-      .gte('created_at', twelveHoursAgo)
-      .order('priority_score', { ascending: false })
-      .limit(150);
-    if (country) dbQuery = dbQuery.eq('country', country);
-
-    const { data: rawArticles, error: dbErr } = await dbQuery;
-    if (dbErr) return new Response(JSON.stringify({ error: dbErr.message }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-
-    // Exclude articles already posted or already selected as top_pick in a previous run.
-    const eligible = (rawArticles ?? []).filter(a => a.status !== 'posted' && !a.tags?.includes('top_pick'));
-    const tagged = eligible
-      .map(a => ({ ...a, tags: tagArticle(a) }))
-      .filter(a => a.tags.length > 0);
-
-    if (tagged.length === 0) {
-      return new Response(JSON.stringify({ selected_ids: [] }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const anthropicOpts: { apiKey: string; baseURL?: string } = { apiKey: Deno.env.get('ANTHROPIC_KEY')! };
-    const baseURL = Deno.env.get('ANTHROPIC_BASE_URL');
-    if (baseURL) anthropicOpts.baseURL = baseURL;
-    const anthropic = new Anthropic(anthropicOpts);
-    const model = Deno.env.get('ANTHROPIC_MODEL') ?? 'claude-haiku-4-5-20251001';
-
-    const articleList = tagged.map(a =>
-      `ID: ${a.id} [Tags: ${a.tags.join(', ')}]\nTitle: ${a.title}\nSummary: ${a.summary ?? ''}`
-    ).join('\n\n');
-
-    const response = await anthropic.messages.create({
-      model,
-      max_tokens: 512,
-      messages: [{
-        role: 'user',
-        content: `You are an editorial assistant for a Facebook news page targeting adults aged 35+.\nFrom the pre-tagged articles below, select the best 5–10 for publishing today.\nTag meanings: breaking=major incident, alert=serious event, trending=widely discussed, patriotic=national pride/achievement, social=affects people over 35 (health/economy/housing/pensions).\nPrioritise breaking > alert > patriotic + social > trending.\nReturn ONLY: {"selected_ids": ["id1","id2",...]}\n\nArticles:\n${articleList}`,
-      }],
-    });
-
-    const parsed = typeof response === 'string' ? JSON.parse(response) : response;
-    const firstContent = (parsed as any).content?.[0];
-    const text = firstContent?.type === 'text' ? firstContent.text : (parsed as any).completion ?? (parsed as any).text ?? '{}';
-    let selected_ids: string[] = [];
-    try {
-      const m = text.trim().match(/\{[\s\S]*\}/);
-      const parsed = JSON.parse(m ? m[0] : text.trim());
-      selected_ids = parsed.selected_ids ?? [];
-    } catch { /* keep empty array */ }
-
-    // Write tags back to DB so editors can filter by them
-    await Promise.all(tagged.map(a => {
-      const articleTags = selected_ids.includes(a.id) ? [...a.tags, 'top_pick'] : a.tags;
-      return supabase.from('articles').update({ tags: articleTags }).eq('id', a.id);
-    }));
-
-    return new Response(JSON.stringify({ selected_ids }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
@@ -672,7 +654,14 @@ async function handleRequest(req: Request): Promise<Response> {
       if (content.seed_comment_template_id) {
         recentSeedByCountry[article.country].push(content.seed_comment_template_id);
       }
-      await supabase.from('articles').update(content).eq('id', article.id);
+      const tags = tagArticle({
+        title: article.title,
+        summary: article.summary,
+        source: article.source,
+        country: article.country,
+        story_category: content.story_category,
+      });
+      await supabase.from('articles').update({ ...content, tags }).eq('id', article.id);
       processed++;
       results.push({ id: article.id, seo_title: content.seo_title });
     } catch (err: any) {

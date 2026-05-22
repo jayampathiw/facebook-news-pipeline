@@ -5,8 +5,13 @@ import { Article, ArticleStats, SupabaseService } from '../core/supabase.service
 import { ArticleDetailComponent } from './article-detail-dialog.component';
 
 const COUNTRIES = ['FR', 'IT', 'AU', 'SE'];
-const STATUSES  = ['pending', 'approved', 'rejected', 'posted', 'failed'];
+const STATUSES  = ['pending', 'posted', 'failed', 'blocked', 'manual_review'];
 const CRITICALITIES = ['breaking', 'alert', 'trending', 'standard'];
+
+// Display priority for tag chips — UI shows at most 3 in the table row, in this order.
+// off_target outranks everything so the skip signal is always visible.
+const TAG_DISPLAY_ORDER = ['off_target', 'patriotic', 'health', 'justice', 'prices', 'region', 'sport', 'social'];
+const TAG_CHIPS_PER_ROW = 3;
 
 const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: 'Australia', SE: 'Sweden' };
 
@@ -59,17 +64,13 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
               <div style="font-size:26px;font-weight:700;line-height:1;color:var(--ink-alert);">{{ stats()!.pending }}</div>
               <div style="font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-text-2);margin-top:5px;">Pending</div>
             </button>
-            <button class="stat-card" [class.active]="filterStatus() === 'approved'" (click)="filterByStatus('approved')">
-              <div style="font-size:26px;font-weight:700;line-height:1;color:var(--ink-standard);">{{ stats()!.approved }}</div>
-              <div style="font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-text-2);margin-top:5px;">Approved</div>
-            </button>
-            <button class="stat-card" [class.active]="filterStatus() === 'rejected'" (click)="filterByStatus('rejected')">
-              <div style="font-size:26px;font-weight:700;line-height:1;color:var(--ink-breaking);">{{ stats()!.rejected }}</div>
-              <div style="font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-text-2);margin-top:5px;">Rejected</div>
-            </button>
             <button class="stat-card" [class.active]="filterStatus() === 'posted'" (click)="filterByStatus('posted')">
               <div style="font-size:26px;font-weight:700;line-height:1;color:var(--ink-trending);">{{ stats()!.posted }}</div>
               <div style="font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-text-2);margin-top:5px;">Posted</div>
+            </button>
+            <button class="stat-card" [class.active]="filterStatus() === 'blocked'" (click)="filterByStatus('blocked')">
+              <div style="font-size:26px;font-weight:700;line-height:1;color:var(--ink-breaking);">{{ stats()!.blocked ?? 0 }}</div>
+              <div style="font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-text-2);margin-top:5px;">Blocked</div>
             </button>
             <button class="stat-card" [class.active]="filterStatus() === 'failed'" (click)="filterByStatus('failed')">
               <div style="font-size:26px;font-weight:700;line-height:1;color:var(--ink-text-2);">{{ stats()!.failed }}</div>
@@ -129,16 +130,10 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
           <span style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-text-3);">Sort:</span>
           <button
             style="padding:3px 8px;border-radius:4px;cursor:pointer;border:none;font-size:11px;font-family:'Outfit',sans-serif;font-weight:500;transition:all .15s;"
-            [style.background]="sortField()==='priority_score' ? 'rgba(99,102,241,.15)' : 'transparent'"
-            [style.color]="sortField()==='priority_score' ? 'var(--ink-brand)' : 'var(--ink-text-2)'"
-            (click)="setSort('priority_score')"
-          >Level {{ sortIcon('priority_score') }}</button>
-          <button
-            style="padding:3px 8px;border-radius:4px;cursor:pointer;border:none;font-size:11px;font-family:'Outfit',sans-serif;font-weight:500;transition:all .15s;"
-            [style.background]="sortField()==='editorial_score' ? 'rgba(99,102,241,.15)' : 'transparent'"
-            [style.color]="sortField()==='editorial_score' ? 'var(--ink-brand)' : 'var(--ink-text-2)'"
-            (click)="setSort('editorial_score')"
-          >Score {{ sortIcon('editorial_score') }}</button>
+            [style.background]="sortField()==='publish_score' ? 'rgba(99,102,241,.15)' : 'transparent'"
+            [style.color]="sortField()==='publish_score' ? 'var(--ink-brand)' : 'var(--ink-text-2)'"
+            (click)="setSort('publish_score')"
+          >Score {{ sortIcon('publish_score') }}</button>
           <button
             style="padding:3px 8px;border-radius:4px;cursor:pointer;border:none;font-size:11px;font-family:'Outfit',sans-serif;font-weight:500;transition:all .15s;"
             [style.background]="sortField()==='created_at' ? 'rgba(99,102,241,.15)' : 'transparent'"
@@ -146,14 +141,6 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
             (click)="setSort('created_at')"
           >Date {{ sortIcon('created_at') }}</button>
           <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--ink-text-3);">{{ totalItems() }} article{{ totalItems() !== 1 ? 's' : '' }}</span>
-          <button class="btn-brand" style="margin-left:auto;gap:5px;"
-            [disabled]="selectingTop() || loading() || !filterCountry()"
-            [title]="!filterCountry() ? 'Select a country first' : 'Pick top articles for ' + filterCountry()"
-            (click)="pickTopNews()">
-            @if (selectingTop()) { <span class="loading loading-spinner loading-xs"></span> }
-            @else { <span>⭐</span> }
-            Top News
-          </button>
         </div>
 
         <!-- ── Batch bar ── -->
@@ -164,7 +151,6 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
               @if (generating()) { <span class="loading loading-spinner loading-xs"></span> }
               ✦ Generate
             </button>
-            <button class="btn-approve" (click)="approveSelected()">Approve</button>
             <button class="btn-brand" style="gap:5px;" [disabled]="posting()" (click)="batchPostToFacebook()">
               @if (posting()) { <span class="loading loading-spinner loading-xs"></span> }
               📤 Post to Facebook
@@ -199,11 +185,8 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
                 <div style="width:24px;flex-shrink:0;" (click)="$event.stopPropagation()">
                   <input type="checkbox" class="checkbox checkbox-xs" [checked]="allPageSelected()" (change)="toggleAll()" />
                 </div>
-                <button style="width:90px;flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-text-3);text-align:left;background:none;border:none;cursor:pointer;padding:0;font-family:'Outfit',sans-serif;" (click)="setSort('priority_score')">
-                  Level {{ sortIcon('priority_score') }}
-                </button>
-                <button style="width:52px;flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-text-3);text-align:right;background:none;border:none;cursor:pointer;padding:0;font-family:'Outfit',sans-serif;" (click)="setSort('editorial_score')">
-                  Score {{ sortIcon('editorial_score') }}
+                <button style="width:52px;flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-text-3);text-align:right;background:none;border:none;cursor:pointer;padding:0;font-family:'Outfit',sans-serif;" (click)="setSort('publish_score')">
+                  Score {{ sortIcon('publish_score') }}
                 </button>
                 <span style="flex:1;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-text-3);">Article</span>
                 <button style="width:80px;flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-text-3);text-align:right;background:none;border:none;cursor:pointer;padding:0;font-family:'Outfit',sans-serif;" (click)="setSort('created_at')">
@@ -218,7 +201,8 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
                     class="article-row"
                     [class.selected]="isSelected(article.id)"
                     [style.border-left-color]="critColor(article.criticality)"
-                    [style.background-color]="editorialTierBg(article.editorial_score)"
+                    [style.background-color]="criticalityTintBg(article.criticality)"
+                    [style.opacity]="rowOpacity(article)"
                     (click)="openDetail(article)"
                   >
                     <!-- Checkbox -->
@@ -226,30 +210,20 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
                       <input type="checkbox" class="checkbox checkbox-sm" [checked]="isSelected(article.id)" (change)="toggleSelect(article.id)" />
                     </div>
 
-                    <!-- Criticality col (desktop) -->
-                    <div class="hidden sm:flex" style="flex-direction:column;gap:6px;width:90px;flex-shrink:0;padding-top:2px;">
-                      <div style="display:flex;align-items:center;gap:6px;">
-                        <span [class]="critSigClass(article.criticality)"></span>
-                        <span [class]="'ink-badge ' + critBadgeClass(article.criticality)">{{ article.criticality }}</span>
-                      </div>
-                      @if (article.ai_caption) {
-                        <span class="ink-badge ib-ai">AI ✓</span>
-                      }
-                    </div>
-
                     <!-- Score col (desktop) -->
-                    <div class="hidden sm:flex" style="width:52px;flex-shrink:0;align-items:center;justify-content:flex-end;">
-                      <span style="font-size:12px;font-family:'JetBrains Mono',monospace;font-weight:700;"
-                            [style.color]="editorialTierColor(article.editorial_score)">
-                        {{ article.editorial_score ?? '—' }}
+                    <div class="hidden sm:flex" style="width:52px;flex-shrink:0;flex-direction:column;align-items:flex-end;gap:4px;">
+                      <span style="font-size:13px;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--ink-text);">
+                        {{ article.publish_score?.toFixed(0) ?? '—' }}
                       </span>
+                      @if (article.ai_caption) {
+                        <span class="ink-badge ib-ai" style="font-size:9px;">AI ✓</span>
+                      }
                     </div>
 
                     <!-- Content -->
                     <div style="flex:1;min-width:0;">
                       <!-- Mobile badges -->
                       <div class="flex sm:hidden" style="align-items:center;gap:4px;flex-wrap:wrap;margin-bottom:4px;">
-                        <span [class]="'ink-badge ' + critBadgeClass(article.criticality)">{{ article.criticality }}</span>
                         <span class="ink-badge" style="background:var(--ink-raised);color:var(--ink-text-2);">{{ countryFlag(article.country) }} {{ article.country }}</span>
                         <span [class]="'ink-badge ' + statusBadgeClass(article.status)">{{ article.status }}</span>
                       </div>
@@ -262,10 +236,13 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
                         <span [class]="'hidden sm:inline ink-badge ' + statusBadgeClass(article.status)">{{ article.status }}</span>
                         <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-text-3);">{{ article.created_at | date:'dd MMM' }}</span>
                       </div>
-                      @if ((article.tags?.length ?? 0) > 0) {
+                      @if (visibleTags(article).length > 0) {
                         <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:5px;">
-                          @for (tag of article.tags; track tag) {
+                          @for (tag of visibleTags(article); track tag) {
                             <span [class]="'ink-badge ' + tagBadgeClass(tag)">{{ tagLabel(tag) }}</span>
+                          }
+                          @if (extraTagCount(article) > 0) {
+                            <span class="ink-badge" style="background:var(--ink-raised);color:var(--ink-text-2);">+{{ extraTagCount(article) }}</span>
                           }
                         </div>
                       }
@@ -332,7 +309,6 @@ export class ArticleListComponent implements OnInit, OnDestroy {
   loading     = signal(true);
   generating  = signal(false);
   posting     = signal(false);
-  selectingTop = signal(false);
   isDark      = signal(true);
   stats       = signal<ArticleStats | null>(null);
   userEmail   = signal('');
@@ -345,7 +321,7 @@ export class ArticleListComponent implements OnInit, OnDestroy {
   filterCriticality = signal('');
   filterTags        = signal<string[]>([]);
   filterCategory    = signal('');
-  sortField  = signal('created_at');
+  sortField  = signal('publish_score');
   sortDir    = signal<'asc' | 'desc'>('desc');
   currentPage = signal(0);
   selectedIds = signal<string[]>([]);
@@ -356,13 +332,14 @@ export class ArticleListComponent implements OnInit, OnDestroy {
   criticalities = CRITICALITIES;
 
   readonly availableTags = [
-    { value: 'top_pick_unposted', label: '⭐ Top Pick – Unposted' },
-    { value: 'top_pick',          label: '⭐ Top Pick' },
-    { value: 'breaking',          label: '🔴 Breaking' },
-    { value: 'alert',             label: '🟠 Alert' },
-    { value: 'patriotic',         label: '🏆 Patriotic' },
-    { value: 'social',            label: '👥 Social' },
-    { value: 'trending',          label: '📈 Trending' },
+    { value: 'off_target', label: '⛔ Off-target' },
+    { value: 'patriotic',  label: '🏆 Patriotic' },
+    { value: 'health',     label: '⚠️ Health' },
+    { value: 'justice',    label: '⚖️ Justice' },
+    { value: 'prices',     label: '💰 Prices' },
+    { value: 'region',     label: '🌍 Region' },
+    { value: 'sport',      label: '⚽ Sport' },
+    { value: 'social',     label: '👥 Social' },
   ];
 
   filteredSorted = computed(() => {
@@ -377,10 +354,7 @@ export class ArticleListComponent implements OnInit, OnDestroy {
     if (crit)    items = items.filter(a => a.criticality === crit);
     const tags = this.filterTags();
     if (tags.length > 0) {
-      items = items.filter(a => tags.some(tag => {
-        if (tag === 'top_pick_unposted') return a.tags?.includes('top_pick') && a.status !== 'posted';
-        return a.tags?.includes(tag);
-      }));
+      items = items.filter(a => tags.some(tag => a.tags?.includes(tag)));
     }
     const category = this.filterCategory();
     if (category) items = items.filter(a => a.story_category === category);
@@ -477,25 +451,6 @@ export class ArticleListComponent implements OnInit, OnDestroy {
     }
   }
 
-  async pickTopNews() {
-    this.selectingTop.set(true);
-    try {
-      const result = await this.supabase.selectTopNews(this.filterCountry());
-      this.selectedIds.set(result.selected_ids);
-      if (result.selected_ids.length > 0) {
-        await this.load();
-        this.showToast(`${result.selected_ids.length} top articles selected`);
-        this.selectedIds.set(result.selected_ids);
-      } else {
-        this.showToast('No matching articles in the last 12 hours', false);
-      }
-    } catch (err: any) {
-      this.showToast(err.message, false);
-    } finally {
-      this.selectingTop.set(false);
-    }
-  }
-
   resetPage() { this.currentPage.set(0); }
 
   toggleTagFilter(tag: string) {
@@ -507,16 +462,7 @@ export class ArticleListComponent implements OnInit, OnDestroy {
   tagChipClass(tag: string): string {
     const active = this.filterTags().includes(tag);
     if (!active) return 'ink-badge tag-chip';
-    const cls: Record<string, string> = {
-      top_pick_unposted: 'ink-badge ib-brand tag-chip',
-      top_pick:          'ink-badge ib-brand tag-chip',
-      breaking:          'ink-badge ib-breaking tag-chip',
-      alert:             'ink-badge ib-alert tag-chip',
-      patriotic:         'ink-badge ib-standard tag-chip',
-      social:            'ink-badge ib-trending tag-chip',
-      trending:          'ink-badge ib-ai tag-chip',
-    };
-    return cls[tag] ?? 'ink-badge ib-brand tag-chip';
+    return `ink-badge ${this.tagBadgeClass(tag)} tag-chip`;
   }
 
   filterByStatus(status: string) {
@@ -615,25 +561,13 @@ export class ArticleListComponent implements OnInit, OnDestroy {
     }
   }
 
-  async approveSelected() {
-    const ids = this.selectedIds();
-    if (!ids.length) return;
-    try {
-      await this.supabase.updateArticlesStatus(ids, 'approved');
-      this.showToast(`${ids.length} article${ids.length !== 1 ? 's' : ''} approved`);
-      await this.load();
-    } catch (err: any) {
-      this.showToast(err.message, false);
-    }
-  }
-
   async batchPostToFacebook() {
     const ids = this.selectedIds().filter(id => {
       const article = this._allArticles().find(a => a.id === id);
-      return article?.status === 'approved';
+      return article?.status === 'pending' && article?.ai_caption != null;
     });
     if (!ids.length) {
-      this.showToast('No approved articles selected', false);
+      this.showToast('Select pending articles with generated captions', false);
       return;
     }
     this.posting.set(true);
@@ -685,34 +619,38 @@ export class ArticleListComponent implements OnInit, OnDestroy {
     this.router.navigate(['/login']);
   }
 
-  editorialTierBg(score: number | null | undefined): string {
-    if (!score) return '';
-    if (score >= 100) return 'rgba(0, 204, 112, 0.07)';
-    if (score >= 60)  return 'rgba(255, 140, 0, 0.07)';
-    return '';
+  criticalityTintBg(level: string): string {
+    return ({
+      breaking: 'rgba(255, 54, 54, 0.08)',
+      alert:    'rgba(255, 140, 0, 0.08)',
+      trending: 'rgba(30, 122, 255, 0.06)',
+      standard: '',
+    } as any)[level] ?? '';
   }
 
-  editorialTierColor(score: number | null | undefined): string {
-    if (!score) return 'var(--ink-text-3)';
-    if (score >= 100) return '#00cc70';
-    if (score >= 60)  return '#ff8c00';
-    return 'var(--ink-text-3)';
+  rowOpacity(article: Article): string {
+    return article.tags?.includes('off_target') ? '0.55' : '1';
+  }
+
+  visibleTags(article: Article): string[] {
+    const tags = article.tags ?? [];
+    const ranked = TAG_DISPLAY_ORDER.filter(t => tags.includes(t));
+    return ranked.slice(0, TAG_CHIPS_PER_ROW);
+  }
+
+  extraTagCount(article: Article): number {
+    const tags = article.tags ?? [];
+    const known = TAG_DISPLAY_ORDER.filter(t => tags.includes(t)).length;
+    const visible = Math.min(known, TAG_CHIPS_PER_ROW);
+    return Math.max(0, known - visible);
   }
 
   critColor(level: string): string {
     return ({ breaking: '#ff3636', alert: '#ff8c00', trending: '#1e7aff', standard: '#00cc70' } as any)[level] ?? '#1a2440';
   }
 
-  critSigClass(level: string): string {
-    return `sig sig-${level || 'standard'}`;
-  }
-
-  critBadgeClass(level: string): string {
-    return ({ breaking: 'ib-breaking', alert: 'ib-alert', trending: 'ib-trending', standard: 'ib-standard' } as any)[level] ?? '';
-  }
-
   statusBadgeClass(status: string): string {
-    return ({ pending: 'ib-pending', approved: 'ib-approved', rejected: 'ib-rejected', posted: 'ib-posted', failed: 'ib-failed' } as any)[status] ?? '';
+    return ({ pending: 'ib-pending', approved: 'ib-approved', rejected: 'ib-rejected', posted: 'ib-posted', failed: 'ib-failed', blocked: 'ib-breaking', manual_review: 'ib-alert' } as any)[status] ?? '';
   }
 
   countryFlag(country: string): string {
@@ -720,12 +658,28 @@ export class ArticleListComponent implements OnInit, OnDestroy {
   }
 
   tagBadgeClass(tag: string): string {
-    return ({ top_pick: 'ib-brand', breaking: 'ib-breaking', alert: 'ib-alert',
-              patriotic: 'ib-standard', social: 'ib-trending', trending: 'ib-ai' } as any)[tag] ?? '';
+    return ({
+      off_target: 'ib-breaking',
+      patriotic:  'ib-standard',
+      health:     'ib-alert',
+      justice:    'ib-brand',
+      prices:     'ib-trending',
+      region:     'ib-ai',
+      sport:      'ib-trending',
+      social:     'ib-pending',
+    } as any)[tag] ?? '';
   }
 
   tagLabel(tag: string): string {
-    return ({ top_pick: '⭐ Top Pick', breaking: '🔴 Breaking', alert: '🟠 Alert',
-              patriotic: '🏆 Patriotic', social: '👥 Social', trending: '📈 Trending' } as any)[tag] ?? tag;
+    return ({
+      off_target: '⛔ Off-target',
+      patriotic:  '🏆 Patriotic',
+      health:     '⚠️ Health',
+      justice:    '⚖️ Justice',
+      prices:     '💰 Prices',
+      region:     '🌍 Region',
+      sport:      '⚽ Sport',
+      social:     '👥 Social',
+    } as any)[tag] ?? tag;
   }
 }

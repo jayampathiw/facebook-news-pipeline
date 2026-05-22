@@ -65,6 +65,37 @@ import { Article, SupabaseService } from '../core/supabase.service';
           </div>
           <div style="border-top:1px solid var(--ink-border);"></div>
           <div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <p class="section-label" style="margin-bottom:0;">Post format</p>
+              @if (article.recommended_format && article.post_format === article.recommended_format) {
+                <span style="font-size:10px;color:var(--ink-standard);letter-spacing:.04em;text-transform:uppercase;font-weight:600;">✓ suggested</span>
+              }
+            </div>
+            <select class="ink-select" style="width:100%;"
+                    [value]="article.post_format ?? article.recommended_format ?? 'image'"
+                    [disabled]="updatingFormat()"
+                    (change)="updatePostFormat($any($event.target).value)">
+              @for (f of FORMATS; track f) {
+                <option [value]="f">{{ formatLabel(f) }}</option>
+              }
+            </select>
+            @if (article.recommended_format && article.post_format !== article.recommended_format) {
+              <p style="font-size:10px;color:var(--ink-text-3);margin-top:4px;">Claude suggested: {{ formatLabel(article.recommended_format) }}</p>
+            }
+          </div>
+          @if ((article.tags?.length ?? 0) > 0) {
+            <div style="border-top:1px solid var(--ink-border);"></div>
+            <div>
+              <p class="section-label">Tags</p>
+              <div style="display:flex;gap:4px;flex-wrap:wrap;">
+                @for (tag of article.tags; track tag) {
+                  <span [class]="'ink-badge ' + tagBadgeClass(tag)">{{ tagLabel(tag) }}</span>
+                }
+              </div>
+            </div>
+          }
+          <div style="border-top:1px solid var(--ink-border);"></div>
+          <div>
             <p class="section-label">Article ID</p>
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-text-2);background:var(--ink-raised);border:1px solid var(--ink-border);padding:4px 8px;border-radius:4px;word-break:break-all;flex:1;">{{ article.id }}</code>
@@ -392,10 +423,8 @@ import { Article, SupabaseService } from '../core/supabase.service';
           ✦ Generate
         </button>
         <div style="display:flex;align-items:center;gap:8px;margin-left:auto;flex-wrap:wrap;">
-          <button class="btn-reject" [disabled]="article.status === 'rejected'" (click)="setStatus('rejected')">Reject</button>
-          <button class="btn-approve" [disabled]="article.status === 'approved'" (click)="setStatus('approved')">Approve</button>
           <button class="btn-brand"
-                  [disabled]="article.status !== 'approved' || posting()"
+                  [disabled]="article.status !== 'pending' || !article.ai_caption || posting()"
                   style="background:var(--ink-brand);"
                   (click)="postToFacebook()">
             @if (posting()) { <span class="loading loading-spinner loading-xs"></span> }
@@ -426,8 +455,11 @@ export class ArticleDetailComponent implements OnDestroy {
   compositedDataUrl = signal<string | null>(null);
   composeError     = signal<string | null>(null);
   posting          = signal(false);
+  updatingFormat   = signal(false);
   toast = signal<{ msg: string; ok: boolean } | null>(null);
   private toastTimer: any;
+
+  readonly FORMATS = ['image', 'video', 'poll', 'carousel'];
 
   constructor(
     private supabase: SupabaseService,
@@ -457,7 +489,43 @@ export class ArticleDetailComponent implements OnDestroy {
   }
 
   statusBadgeClass(status: string): string {
-    return ({ pending: 'ib-pending', approved: 'ib-approved', rejected: 'ib-rejected', posted: 'ib-posted', failed: 'ib-failed' } as any)[status] ?? '';
+    return ({ pending: 'ib-pending', approved: 'ib-approved', rejected: 'ib-rejected', posted: 'ib-posted', failed: 'ib-failed', blocked: 'ib-breaking', manual_review: 'ib-alert' } as any)[status] ?? '';
+  }
+
+  formatLabel(value: string): string {
+    return ({ image: '🖼 Image', video: '🎬 Video', poll: '📊 Poll', carousel: '🗂 Carousel' } as any)[value] ?? value;
+  }
+
+  tagBadgeClass(tag: string): string {
+    return ({
+      off_target: 'ib-breaking', patriotic: 'ib-standard', health: 'ib-alert',
+      justice: 'ib-brand', prices: 'ib-trending', region: 'ib-ai',
+      sport: 'ib-trending', social: 'ib-pending',
+    } as any)[tag] ?? '';
+  }
+
+  tagLabel(tag: string): string {
+    return ({
+      off_target: '⛔ Off-target', patriotic: '🏆 Patriotic', health: '⚠️ Health',
+      justice: '⚖️ Justice', prices: '💰 Prices', region: '🌍 Region',
+      sport: '⚽ Sport', social: '👥 Social',
+    } as any)[tag] ?? tag;
+  }
+
+  async updatePostFormat(value: string) {
+    if (!this.FORMATS.includes(value) || value === this.article.post_format) return;
+    const next = value as 'image' | 'video' | 'poll' | 'carousel';
+    this.updatingFormat.set(true);
+    try {
+      await this.supabase.updateArticleFields(this.article.id, { post_format: next });
+      this.article = { ...this.article, post_format: next };
+      this.articleUpdated.emit(this.article);
+      this.showToast(`Format set to ${next}`);
+    } catch (err: any) {
+      this.showToast(err.message, false);
+    } finally {
+      this.updatingFormat.set(false);
+    }
   }
 
   showToast(msg: string, ok = true) {
