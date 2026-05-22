@@ -358,8 +358,8 @@ import { Article, SupabaseService } from '../core/supabase.service';
                 <p class="section-label" style="margin-bottom:0;">Raw Prompt</p>
                 <button class="btn-ink" style="height:26px;padding:0 10px;font-size:11px;" (click)="copy(article.image_prompt!)">Copy</button>
               </div>
-              <textarea class="ink-input" rows="12"
-                        style="width:100%;resize:vertical;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-text-2);box-sizing:border-box;"
+              <textarea class="ink-input"
+                        style="width:100%;height:15rem;resize:vertical;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-text-2);box-sizing:border-box;"
                         [value]="article.image_prompt ?? ''"
                         (blur)="saveImageField('image_prompt', $any($event.target).value)"></textarea>
             </div>
@@ -368,8 +368,8 @@ import { Article, SupabaseService } from '../core/supabase.service';
                 Formatted Prompt
                 <span style="font-weight:400;text-transform:none;letter-spacing:normal;color:var(--ink-text-3);">(Midjourney / DALL·E)</span>
               </p>
-              <textarea class="ink-input" rows="18"
-                        style="width:100%;resize:vertical;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-text-2);box-sizing:border-box;"
+              <textarea class="ink-input"
+                        style="width:100%;height:15rem;resize:vertical;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-text-2);box-sizing:border-box;"
                         [value]="article.formatted_image_prompt ?? ''"
                         (blur)="saveImageField('formatted_image_prompt', $any($event.target).value)"></textarea>
               <button class="btn-brand" style="width:100%;margin-top:8px;" (click)="copy(article.formatted_image_prompt!)">
