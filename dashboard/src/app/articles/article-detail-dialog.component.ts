@@ -100,6 +100,15 @@ import { Article, SupabaseService } from '../core/supabase.service';
           }
           <div style="border-top:1px solid var(--ink-border);"></div>
           <div>
+            <p class="section-label">Editor Notes</p>
+            <textarea class="ink-input" rows="3"
+                      style="width:100%;resize:vertical;font-size:13px;box-sizing:border-box;"
+                      placeholder="Add research context, angle decisions, posting notes…"
+                      [value]="article.editor_notes ?? ''"
+                      (blur)="saveEditorNotes($any($event.target).value)"></textarea>
+          </div>
+          <div style="border-top:1px solid var(--ink-border);"></div>
+          <div>
             <p class="section-label">Article ID</p>
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <code style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-text-2);background:var(--ink-raised);border:1px solid var(--ink-border);padding:4px 8px;border-radius:4px;word-break:break-all;flex:1;">{{ article.id }}</code>
@@ -589,6 +598,16 @@ export class ArticleDetailComponent implements OnDestroy {
       this.showToast(err.message, false);
     } finally {
       this.posting.set(false);
+    }
+  }
+
+  async saveEditorNotes(value: string) {
+    if (value === (this.article.editor_notes ?? '')) return;
+    try {
+      await this.supabase.updateArticleFields(this.article.id, { editor_notes: value });
+      this.article = { ...this.article, editor_notes: value };
+    } catch (err: any) {
+      this.showToast(err.message, false);
     }
   }
 

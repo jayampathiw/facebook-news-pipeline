@@ -45,6 +45,20 @@ export interface Article {
   hashtags?: string[];
   recommended_format?: 'image' | 'video' | 'poll' | 'carousel' | null;
   post_format?: 'image' | 'video' | 'poll' | 'carousel' | null;
+  editor_notes?: string | null;
+}
+
+export interface AnalyzedArticle {
+  title: string;
+  url: string;
+  summary: string;
+  source: string;
+  criticality: 'breaking' | 'alert' | 'trending' | 'standard';
+  priority_score: number;
+  policy_flags: string[];
+  suggested_angle: string | null;
+  tags: string[];
+  pillar: string | null;
 }
 
 export interface PostMetric {
@@ -221,6 +235,27 @@ export class SupabaseService {
       const body = await res.json().catch(() => ({ error: res.statusText }));
       throw new Error(body.error ?? `Image generation failed (${res.status})`);
     }
+    return res.json();
+  }
+
+  async insertArticle(article: Partial<Article>): Promise<void> {
+    const { error } = await this.client.from('articles').insert(article);
+    if (error) throw error;
+  }
+
+  async analyzeUpload(rawText: string, country: string): Promise<{ articles: AnalyzedArticle[] }> {
+    const session = await this.getSession();
+    const token = session?.access_token ?? environment.supabaseAnonKey;
+    const res = await fetch(`${environment.supabaseUrl}/functions/v1/analyze-upload`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'apikey': environment.supabaseAnonKey,
+      },
+      body: JSON.stringify({ rawText, country }),
+    });
+    if (!res.ok) throw new Error(`Analysis failed: ${await res.text()}`);
     return res.json();
   }
 

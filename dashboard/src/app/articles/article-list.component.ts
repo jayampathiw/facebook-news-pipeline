@@ -26,6 +26,7 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
         <span style="font-family:'Playfair Display',serif;font-weight:900;font-size:18px;letter-spacing:.06em;color:var(--ink-text);">SIGNAL</span>
         <span class="hidden sm:inline" style="font-size:10px;color:var(--ink-text-3);letter-spacing:.12em;text-transform:uppercase;">Console</span>
         <a routerLink="/metrics" style="font-size:11px;font-weight:600;color:var(--ink-brand);text-decoration:none;padding:3px 8px;border-radius:4px;background:var(--ink-brand-glow);letter-spacing:.05em;">Metrics</a>
+        <a routerLink="/upload" style="font-size:11px;font-weight:600;color:var(--ink-standard);text-decoration:none;padding:3px 8px;border-radius:4px;background:rgba(0,204,112,.1);letter-spacing:.05em;">⬆ Upload</a>
       </div>
       <div style="display:flex;align-items:center;gap:8px;">
         <span class="hidden sm:inline" style="font-size:11px;color:var(--ink-text-3);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ userEmail() }}</span>

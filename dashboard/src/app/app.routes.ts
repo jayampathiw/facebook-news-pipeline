@@ -17,5 +17,10 @@ export const routes: Routes = [
     loadComponent: () => import('./metrics/metrics.component').then(m => m.MetricsComponent),
     canActivate: [authGuard],
   },
+  {
+    path: 'upload',
+    loadComponent: () => import('./upload/upload.component').then(m => m.UploadComponent),
+    canActivate: [authGuard],
+  },
   { path: '**', redirectTo: 'articles' },
 ];
