@@ -53,10 +53,14 @@ import { Article, SupabaseService } from '../core/supabase.service';
             </div>
             <div style="border-top:1px solid var(--ink-border);"></div>
           }
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;">
             <div>
-              <p class="section-label">Priority Score</p>
-              <p style="font-size:28px;font-weight:700;color:var(--ink-brand);font-family:'JetBrains Mono',monospace;line-height:1;">{{ article.priority_score }}</p>
+              <p class="section-label">Criticality Score</p>
+              <p style="font-size:28px;font-weight:700;color:var(--ink-text-2);font-family:'JetBrains Mono',monospace;line-height:1;">{{ article.priority_score ?? '—' }}</p>
+            </div>
+            <div>
+              <p class="section-label">Publish Score</p>
+              <p style="font-size:28px;font-weight:700;color:var(--ink-brand);font-family:'JetBrains Mono',monospace;line-height:1;">{{ article.publish_score?.toFixed(0) ?? '—' }}</p>
             </div>
             <div>
               <p class="section-label">Published</p>
@@ -229,6 +233,7 @@ import { Article, SupabaseService } from '../core/supabase.service';
         @if (activeTab() === 3) {
 
           <!-- Generate Image button — always visible -->
+          <input type="file" #fileUploadInput accept="image/*" style="display:none;" (change)="onImageUpload($event)" />
           <div style="display:flex;gap:8px;">
             <button class="btn-brand" style="flex:1;justify-content:center;gap:6px;"
                     [disabled]="generatingImage() || !article.image_prompt"
@@ -241,6 +246,9 @@ import { Article, SupabaseService } from '../core/supabase.service';
                 🖼 {{ article.generated_image_url ? 'Regenerate Image' : 'Generate Image' }}
               }
             </button>
+            <button class="btn-ink" style="gap:4px;flex-shrink:0;" (click)="fileUploadInput.click()">
+              ⬆ Upload
+            </button>
             @if (!article.image_prompt) {
               <button class="btn-ink" style="gap:4px;" [disabled]="generating()" (click)="generate()">
                 @if (generating()) { <span class="loading loading-spinner loading-xs"></span> }
@@ -248,9 +256,15 @@ import { Article, SupabaseService } from '../core/supabase.service';
               </button>
             }
           </div>
+          @if (uploadedImageDataUrl()) {
+            <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--ink-standard);">
+              <span>✓ Custom image uploaded</span>
+              <button class="btn-ink" style="height:22px;padding:0 8px;font-size:10px;" (click)="uploadedImageDataUrl.set(null); compositedDataUrl.set(null)">✕ Remove</button>
+            </div>
+          }
 
           <!-- Composite & download row — shown once a base image exists -->
-          @if (article.generated_image_url) {
+          @if (effectiveImageUrl) {
             <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
               <button class="btn-ink" style="gap:6px;flex:1;justify-content:center;"
                       [disabled]="compositing()"
@@ -272,33 +286,33 @@ import { Article, SupabaseService } from '../core/supabase.service';
           }
 
           <!-- Image preview: composited canvas result OR raw image with CSS overlay -->
-          @if (article.generated_image_url) {
+          @if (effectiveImageUrl) {
             @if (compositedDataUrl()) {
               <div style="width:100%;border-radius:8px;overflow:hidden;background:var(--ink-raised);">
                 <img [src]="compositedDataUrl()!" style="width:100%;display:block;border-radius:8px;" alt="Composited post image" />
               </div>
             } @else {
               <div style="width:100%;border-radius:8px;overflow:hidden;background:var(--ink-raised);min-height:280px;position:relative;display:flex;align-items:center;justify-content:center;">
-                @if (!imageLoaded() && !imageError()) {
+                @if (!imageLoaded() && !imageError() && !uploadedImageDataUrl()) {
                   <div style="display:flex;flex-direction:column;align-items:center;gap:10px;color:var(--ink-text-3);padding:40px;">
                     <span class="loading loading-spinner" style="width:28px;height:28px;color:var(--ink-brand);"></span>
                     <span style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;">Loading image… (up to 60s)</span>
                   </div>
                 }
-                @if (imageError()) {
+                @if (imageError() && !uploadedImageDataUrl()) {
                   <div style="display:flex;flex-direction:column;align-items:center;gap:8px;color:var(--ink-text-3);padding:40px;text-align:center;">
                     <span style="font-size:28px;opacity:.3;">▦</span>
                     <span style="font-size:11px;">Image URL expired — click Regenerate Image</span>
                   </div>
                 }
-                @if (!imageError()) {
+                @if (!imageError() || uploadedImageDataUrl()) {
                   <div style="position:relative;width:100%;">
-                    <img [src]="article.generated_image_url"
-                         [style.display]="imageLoaded() ? 'block' : 'none'"
+                    <img [src]="effectiveImageUrl"
+                         [style.display]="imageLoaded() || uploadedImageDataUrl() ? 'block' : 'none'"
                          style="width:100%;display:block;border-radius:8px;"
                          (load)="imageLoaded.set(true)"
                          (error)="imageError.set(true)" />
-                    @if (article.image_headline && imageLoaded()) {
+                    @if (article.image_headline && (imageLoaded() || uploadedImageDataUrl())) {
                       <div style="position:absolute;top:0;left:0;right:0;padding:18px 14px 48px;background:linear-gradient(rgba(0,0,0,.65) 0%,transparent 100%);text-align:center;border-radius:8px 8px 0 0;">
                         <span style="font-family:'Anton','Impact',serif;font-size:clamp(16px,5.5vw,26px);color:rgba(255,255,255,.95);letter-spacing:.04em;line-height:1.2;display:block;text-shadow:1px 1px 0 rgba(0,0,0,.8),-1px -1px 0 rgba(0,0,0,.8),1px -1px 0 rgba(0,0,0,.8),-1px 1px 0 rgba(0,0,0,.8);">
                           {{ article.image_headline }}
@@ -333,7 +347,10 @@ import { Article, SupabaseService } from '../core/supabase.service';
                   </p>
                   <button class="btn-ink" style="height:26px;padding:0 10px;font-size:11px;" (click)="copy(article.image_headline!)">Copy</button>
                 </div>
-                <div class="ink-content-block" style="font-size:15px;font-weight:700;color:var(--ink-text);letter-spacing:.02em;">{{ article.image_headline }}</div>
+                <textarea class="ink-input" rows="2"
+                          style="width:100%;resize:vertical;font-size:15px;font-weight:700;letter-spacing:.02em;box-sizing:border-box;"
+                          [value]="article.image_headline ?? ''"
+                          (blur)="saveImageField('image_headline', $any($event.target).value)"></textarea>
               </div>
             }
             <div>
@@ -341,14 +358,20 @@ import { Article, SupabaseService } from '../core/supabase.service';
                 <p class="section-label" style="margin-bottom:0;">Raw Prompt</p>
                 <button class="btn-ink" style="height:26px;padding:0 10px;font-size:11px;" (click)="copy(article.image_prompt!)">Copy</button>
               </div>
-              <div class="ink-content-block" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-text-2);">{{ article.image_prompt }}</div>
+              <textarea class="ink-input" rows="6"
+                        style="width:100%;resize:vertical;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-text-2);box-sizing:border-box;"
+                        [value]="article.image_prompt ?? ''"
+                        (blur)="saveImageField('image_prompt', $any($event.target).value)"></textarea>
             </div>
             <div>
               <p class="section-label">
                 Formatted Prompt
                 <span style="font-weight:400;text-transform:none;letter-spacing:normal;color:var(--ink-text-3);">(Midjourney / DALL·E)</span>
               </p>
-              <div class="ink-content-block" style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-text-2);max-height:140px;overflow-y:auto;">{{ article.formatted_image_prompt }}</div>
+              <textarea class="ink-input" rows="10"
+                        style="width:100%;resize:vertical;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-text-2);box-sizing:border-box;"
+                        [value]="article.formatted_image_prompt ?? ''"
+                        (blur)="saveImageField('formatted_image_prompt', $any($event.target).value)"></textarea>
               <button class="btn-brand" style="width:100%;margin-top:8px;" (click)="copy(article.formatted_image_prompt!)">
                 📋 Copy formatted prompt
               </button>
@@ -448,12 +471,17 @@ export class ArticleDetailComponent implements OnDestroy {
   tabs = ['Overview', 'Caption', 'SEO', 'Image', 'Signals'];
   activeTab = signal(0);
   generating       = signal(false);
-  generatingImage  = signal(false);
-  imageLoaded      = signal(false);
-  imageError       = signal(false);
-  compositing      = signal(false);
-  compositedDataUrl = signal<string | null>(null);
-  composeError     = signal<string | null>(null);
+  generatingImage      = signal(false);
+  imageLoaded          = signal(false);
+  imageError           = signal(false);
+  compositing          = signal(false);
+  compositedDataUrl    = signal<string | null>(null);
+  composeError         = signal<string | null>(null);
+  uploadedImageDataUrl = signal<string | null>(null);
+
+  get effectiveImageUrl(): string | null {
+    return this.uploadedImageDataUrl() ?? this.article.generated_image_url ?? null;
+  }
   posting          = signal(false);
   updatingFormat   = signal(false);
   toast = signal<{ msg: string; ok: boolean } | null>(null);
@@ -564,6 +592,32 @@ export class ArticleDetailComponent implements OnDestroy {
     }
   }
 
+  async saveImageField(field: 'image_headline' | 'image_prompt' | 'formatted_image_prompt', value: string) {
+    if (value === (this.article as any)[field]) return;
+    try {
+      await this.supabase.updateArticleFields(this.article.id, { [field]: value });
+      this.article = { ...this.article, [field]: value };
+      this.articleUpdated.emit(this.article);
+    } catch (err: any) {
+      this.showToast(err.message, false);
+    }
+  }
+
+  onImageUpload(event: Event) {
+    const file = (event.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      this.uploadedImageDataUrl.set(e.target!.result as string);
+      this.imageLoaded.set(true);
+      this.imageError.set(false);
+      this.compositedDataUrl.set(null);
+      this.composeError.set(null);
+    };
+    reader.readAsDataURL(file);
+    (event.target as HTMLInputElement).value = '';
+  }
+
   async generate() {
     this.generating.set(true);
     try {
@@ -593,6 +647,7 @@ export class ArticleDetailComponent implements OnDestroy {
       return;
     }
     this.generatingImage.set(true);
+    this.uploadedImageDataUrl.set(null);
     this.imageLoaded.set(false);
     this.imageError.set(false);
     this.compositedDataUrl.set(null);
@@ -611,7 +666,7 @@ export class ArticleDetailComponent implements OnDestroy {
 
   async compositeImage() {
     if (!isPlatformBrowser(this.platformId)) return;
-    const url = this.article.generated_image_url;
+    const url = this.effectiveImageUrl;
     if (!url) return;
 
     this.compositing.set(true);

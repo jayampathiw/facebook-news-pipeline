@@ -5,7 +5,6 @@ import { Article, ArticleStats, SupabaseService } from '../core/supabase.service
 import { ArticleDetailComponent } from './article-detail-dialog.component';
 
 const COUNTRIES = ['FR', 'IT', 'AU', 'SE'];
-const STATUSES  = ['pending', 'posted', 'failed', 'blocked', 'manual_review'];
 const CRITICALITIES = ['breaking', 'alert', 'trending', 'standard'];
 
 // Display priority for tag chips — UI shows at most 3 in the table row, in this order.
@@ -76,6 +75,10 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
               <div style="font-size:26px;font-weight:700;line-height:1;color:var(--ink-text-2);">{{ stats()!.failed }}</div>
               <div style="font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-text-2);margin-top:5px;">Failed</div>
             </button>
+            <button class="stat-card" [class.active]="filterStatus() === 'manual_review'" (click)="filterByStatus('manual_review')">
+              <div style="font-size:26px;font-weight:700;line-height:1;color:var(--ink-standard);">{{ stats()!.manual_review ?? 0 }}</div>
+              <div style="font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-text-2);margin-top:5px;">Review</div>
+            </button>
           </div>
         }
 
@@ -88,10 +91,6 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
             <input type="text" class="ink-input" style="padding-left:32px;" placeholder="Search articles…"
               [value]="filterSearch()" (input)="filterSearch.set($any($event.target).value); resetPage()" />
           </div>
-          <select class="ink-select" style="min-width:110px;" [value]="filterStatus()" (change)="filterStatus.set($any($event.target).value); resetPage()">
-            <option value="">All Statuses</option>
-            @for (s of statuses; track s) { <option [value]="s">{{ s }}</option> }
-          </select>
           <select class="ink-select" style="min-width:105px;" [value]="filterCriticality()" (change)="filterCriticality.set($any($event.target).value); resetPage()">
             <option value="">All Levels</option>
             @for (c of criticalities; track c) { <option [value]="c">{{ c }}</option> }
@@ -328,7 +327,6 @@ export class ArticleListComponent implements OnInit, OnDestroy {
 
   readonly pageSize = 25;
   countries    = COUNTRIES;
-  statuses     = STATUSES;
   criticalities = CRITICALITIES;
 
   readonly availableTags = [
@@ -345,7 +343,7 @@ export class ArticleListComponent implements OnInit, OnDestroy {
   filteredSorted = computed(() => {
     let items = [...this._allArticles()];
     const q = this.filterSearch().toLowerCase();
-    if (q) items = items.filter(a => a.title.toLowerCase().includes(q) || a.source.toLowerCase().includes(q));
+    if (q) items = items.filter(a => a.title.toLowerCase().includes(q) || a.source.toLowerCase().includes(q) || a.id.toLowerCase().includes(q));
     const country = this.filterCountry();
     const status  = this.filterStatus();
     const crit    = this.filterCriticality();
