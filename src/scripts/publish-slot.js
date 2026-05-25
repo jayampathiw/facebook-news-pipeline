@@ -5,7 +5,7 @@ import sharp from 'sharp';
 import FormData from 'form-data';
 import axios from 'axios';
 import { createClient } from '@supabase/supabase-js';
-import { SLOTS, logBoostEligibleWindowStart } from '../services/facebook.js';
+import { SLOTS, logBoostEligibleWindowStart, postVideoToFacebook } from '../services/facebook.js';
 import { getPendingArticlesSortedByScore, getFirstBoostIneligiblePostedIT } from '../services/supabase.js';
 import { nearestSlot } from '../utils/publishScore.js';
 import { compositeImage } from '../utils/imageComposite.js';
@@ -79,17 +79,23 @@ async function publishForCountry(country, slotTarget) {
   }
 
   try {
-    console.log(`[${country}] Generating image for article ${article.id}…`);
-    const imageBuffer = await generateImage(article.image_prompt);
-
-    console.log(`[${country}] Compositing overlay…`);
-    const finalBuffer = await compositeImage(imageBuffer, article.image_headline ?? '', country);
-
+    let fbPostId;
     const captionText = [article.ai_caption.intro, article.ai_caption.question, article.ai_caption.cta]
       .filter(Boolean).join('\n\n') || article.ai_caption.text || '';
 
-    console.log(`[${country}] Uploading to Facebook…`);
-    const fbPostId = await uploadToFacebook(finalBuffer, captionText, pageId, token);
+    if (article.post_format === 'video' && article.reel_path) {
+      console.log(`[${country}] Uploading reel video for article ${article.id}…`);
+      fbPostId = await postVideoToFacebook(article.reel_path, article.ai_caption, article, country);
+    } else {
+      console.log(`[${country}] Generating image for article ${article.id}…`);
+      const imageBuffer = await generateImage(article.image_prompt);
+
+      console.log(`[${country}] Compositing overlay…`);
+      const finalBuffer = await compositeImage(imageBuffer, article.image_headline ?? '', country);
+
+      console.log(`[${country}] Uploading to Facebook…`);
+      fbPostId = await uploadToFacebook(finalBuffer, captionText, pageId, token);
+    }
 
     const postedAt = new Date().toISOString();
     const { error: dbError } = await supabase.from('articles').update({

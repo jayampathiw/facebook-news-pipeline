@@ -437,6 +437,55 @@ import { Article, SupabaseService } from '../core/supabase.service';
           }
         }
 
+        <!-- Reel -->
+        @if (activeTab() === 5) {
+          <div>
+            <p class="section-label">Status</p>
+            @if (article.reel_path) {
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span class="ink-badge ib-standard">✓ Reel ready</span>
+                @if (article.reel_duration) {
+                  <span class="ink-badge" style="background:var(--ink-raised);color:var(--ink-text-2);">{{ article.reel_duration }}s</span>
+                }
+              </div>
+            } @else {
+              <span class="ink-badge" style="background:var(--ink-raised);color:var(--ink-text-3);">Not generated</span>
+            }
+          </div>
+          <div style="border-top:1px solid var(--ink-border);"></div>
+          <div>
+            <p class="section-label">Voice</p>
+            <span style="font-size:13px;font-family:'JetBrains Mono',monospace;color:var(--ink-text);">
+              {{ article.country === 'FR' ? 'ff_siwis (French female)' : 'if_sara (Italian female)' }}
+            </span>
+          </div>
+          <div>
+            <p class="section-label">Post format</p>
+            @if (article.post_format === 'video') {
+              <span class="ink-badge ib-brand">video — reel will be used at publish time</span>
+            } @else {
+              <span class="ink-badge" style="background:var(--ink-raised);color:var(--ink-text-3);">{{ article.post_format ?? 'image' }} — set format to "video" to publish as reel</span>
+            }
+          </div>
+          <div style="border-top:1px solid var(--ink-border);"></div>
+          <div>
+            <p class="section-label">Generate reel</p>
+            <p style="font-size:12px;color:var(--ink-text-2);margin-bottom:8px;">Run this command locally — requires Kokoro TTS + FFmpeg + Whisper + music tracks in assets/music/</p>
+            <div style="background:var(--ink-base);border:1px solid var(--ink-border);border-radius:4px;padding:10px 12px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--ink-text);word-break:break-all;">
+              node src/scripts/generate-reel.js {{ article.id }}
+            </div>
+          </div>
+          @if (article.reel_path) {
+            <div>
+              <p class="section-label">Local path</p>
+              <div style="background:var(--ink-base);border:1px solid var(--ink-border);border-radius:4px;padding:8px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ink-text-2);word-break:break-all;">
+                {{ article.reel_path }}
+              </div>
+              <p style="font-size:11px;color:var(--ink-text-3);margin-top:4px;">Open in file explorer or VLC to preview. Local path cannot stream through the dashboard.</p>
+            </div>
+          }
+        }
+
       </div>
 
       <!-- ── Inline toast ── -->
@@ -477,7 +526,7 @@ export class ArticleDetailComponent implements OnDestroy {
   @Output() closePanel = new EventEmitter<void>();
   @Output() articleUpdated = new EventEmitter<Article>();
 
-  tabs = ['Overview', 'Caption', 'SEO', 'Image', 'Signals'];
+  tabs = ['Overview', 'Caption', 'SEO', 'Image', 'Signals', 'Reel'];
   activeTab = signal(0);
   generating       = signal(false);
   generatingImage      = signal(false);

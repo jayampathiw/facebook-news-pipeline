@@ -1,4 +1,6 @@
+import { readFile } from 'fs/promises';
 import axios from 'axios';
+import FormData from 'form-data';
 
 const FB_BASE = 'https://graph.facebook.com/v22.0';
 
@@ -39,6 +41,29 @@ export async function postToFacebook(article, captionObj, country) {
   });
 
   return response.data.id;
+}
+
+export async function postVideoToFacebook(videoPath, captionObj, article, country) {
+  const pageId = process.env[`FB_PAGE_ID_${country}`];
+  const token  = process.env[`FB_ACCESS_TOKEN_${country}`];
+  if (!pageId || !token) throw new Error(`Missing Facebook credentials for country: ${country}`);
+
+  const { intro, question, cta } = captionObj;
+  const caption = [intro, question, cta].filter(Boolean).join('\n\n');
+
+  const videoBuffer = await readFile(videoPath);
+  const form = new FormData();
+  form.append('video_source', videoBuffer, { filename: 'reel.mp4', contentType: 'video/mp4' });
+  form.append('caption', caption);
+  form.append('description', article.title || '');
+  form.append('access_token', token);
+
+  const res = await axios.post(`${FB_BASE}/${pageId}/videos`, form, {
+    headers: form.getHeaders(),
+    timeout: 120_000,
+  });
+
+  return res.data.id;
 }
 
 export async function deletePost(postId, country) {

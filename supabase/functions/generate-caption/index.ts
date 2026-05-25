@@ -463,10 +463,10 @@ Résumé: ${summary}`,
     }),
     anthropic.messages.create({
       model,
-      max_tokens: 400,
+      max_tokens: 700,
       messages: [{
         role: 'user',
-        content: `Generate an ultra-realistic AI image prompt AND a short image headline for this news article.
+        content: `Generate a cinematic AI image prompt AND a short image headline for this news article.
 
 Return JSON only: {"image_prompt": "...", "image_headline": "..."}
 
@@ -476,26 +476,33 @@ IMAGE_HEADLINE rules (STRICT — count words before responding):
 - MUST be written in ${captionLanguage}. NEVER use English. Even if the article summary is in English, the headline must be in ${captionLanguage}.
 - Concise standalone visual text for image overlay — NOT the article title.
 
-IMAGE_PROMPT rules:
-- Ultra-realistic cinematic photograph. Hyper-detailed photojournalism style.
-- Specific camera: Sony A7R V, Canon EOS R5, or Leica M11.
-- Specific lens focal length + aperture (e.g. 85mm f/1.8). Specific ISO.
-- Cinematic colour grading (specify warm/cool/neutral tones).
-- ABSOLUTELY NO people, faces, or identifiable persons.
-- ABSOLUTELY NO text, logos, flags with readable inscriptions, or readable signs.
-- Use the appropriate subject from this category guide based on the article content:
+IMAGE_PROMPT — follow these two steps:
 
-CATEGORY SUBJECT GUIDE (pick closest match):
-• Politique/Institutionnel → Grand republican building interior, empty marble corridor, closed ornate doors, institutional lighting
-• Santé/Médical → Hospital entrance at night, ambulances in background, clinical lighting, empty foreground
-• Militaire/Naval/Défense → Aircraft carrier at open sea, golden hour, dramatic sky, no crew visible
-• Sport/Victoire → Athletic podium or stadium, motion blur, blurred crowd in background, no faces
-• Football/Stade → Empty football pitch at night, goal posts illuminated, green grass, confetti on ground
-• Énergie/Environnement → Industrial facility or landscape at golden hour, steam rising, dramatic clouds
-• Diplomatique/International → Empty oval conference table, flags slightly out of focus, tall windows with natural light
-• Justice/Judiciaire → Grand courthouse corridor, marble columns, closed wooden doors, no people
-• Culture/Cinéma/Arts → Empty red carpet steps at golden hour, velvet rope, floodlights, no people
-• Économie/Finance → Abstract financial district skyline at dusk, city lights, long exposure traffic blur
+STEP 1 · Choose ONE approach that best fits this article:
+
+A · ANONYMOUS PERSON IN CONTEXT — Article is centrally about a specific athlete, performer, or politician in action.
+   → Person seen from BEHIND or SIDE only, face never visible. Hyper-specific to this article's exact sport/event/emotion/venue.
+   → Athlete: back view in sport-specific uniform at the specific venue. Performer: silhouette on stage, back to audience. Politician: partial profile at podium.
+
+B · SENSITIVE ANONYMOUS SCENE — Article involves a criminal defendant, victim, juvenile, or suspect.
+   → Faceless silhouette + environment only (prison parloir, courthouse steps, family home exterior). Back view. NO person details whatsoever.
+
+C · LOCATION-SPECIFIC — A named venue, city, or landmark is the visual anchor.
+   → Show the actual location precisely without people. Not "a tennis court" — the specific court with its distinctive features, colours, markings.
+
+D · SYMBOLIC / CONCEPTUAL — Abstract institutional debate, geopolitical tension, or policy conflict with no central person or specific venue.
+   → Compose a unique symbolic scene using objects specific to THIS article. NEVER use empty corridors, empty oval tables, or generic empty rooms.
+   → Each D article must produce a visually distinct composition: specific flags + relevant object + relevant landscape for THIS story only.
+
+E · ENVIRONMENTAL / NATURE / HEALTH CRISIS — Epidemic, ecological event, natural phenomenon, specific organism.
+   → Show the specific organism, landscape, or medical setting matching this article exactly. Be precise about geography, vegetation, lighting, atmosphere.
+
+STEP 2 · Write the image_prompt:
+- Write in ${captionLanguage}. Begin: "Photographie cinématographique ultra-réaliste, style photojournalisme hyper-détaillé," (or Italian equivalent for IT articles).
+- Camera locked: Sony A7R V, objectif 35mm, ouverture f/2.8, ISO 200.
+- Specify cinematic colour grading: warm/cool/neutral tones + contrast level + time of day.
+- NO readable text, NO logos, NO legible inscriptions on flags or signs.
+- Minimum 80 words. Every detail must be specific to THIS article — chaque article produit une composition visuellement unique.
 
 Article: ${article.title}
 Summary: ${summary}`,

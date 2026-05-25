@@ -43,6 +43,7 @@ const formatted_image_prompt = formatImagePrompt(
 
 await updateArticle(id, {
   ai_caption,
+  image_headline: ai_caption.image_headline || null,
   seo_title,
   seo_description,
   image_prompt,

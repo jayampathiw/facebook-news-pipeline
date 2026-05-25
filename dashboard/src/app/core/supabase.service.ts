@@ -46,6 +46,8 @@ export interface Article {
   recommended_format?: 'image' | 'video' | 'poll' | 'carousel' | null;
   post_format?: 'image' | 'video' | 'poll' | 'carousel' | null;
   editor_notes?: string | null;
+  reel_path: string | null;
+  reel_duration: number | null;
 }
 
 export interface AnalyzedArticle {
@@ -137,30 +139,43 @@ export class SupabaseService {
   async getArticles(filters: ArticleFilters = {}): Promise<Article[]> {
     const sortBy = filters.sortBy ?? 'created_at';
     const ascending = filters.sortDir === 'asc';
+    const batchSize = 1000;
+    const allData: Article[] = [];
+    let from = 0;
 
-    let query = this.client
-      .from('articles')
-      .select('*')
-      .order(sortBy, { ascending });
+    while (true) {
+      let query = this.client
+        .from('articles')
+        .select('*')
+        .order(sortBy, { ascending })
+        .range(from, from + batchSize - 1);
 
-    if (filters.country) query = query.eq('country', filters.country);
-    if (filters.status) query = query.eq('status', filters.status);
-    if (filters.criticality) query = query.eq('criticality', filters.criticality);
+      if (filters.country) query = query.eq('country', filters.country);
+      if (filters.status) query = query.eq('status', filters.status);
+      if (filters.criticality) query = query.eq('criticality', filters.criticality);
 
-    const { data, error } = await query;
-    if (error) throw error;
-    return (data ?? []) as Article[];
+      const { data, error } = await query;
+      if (error) throw error;
+      if (!data || data.length === 0) break;
+      allData.push(...(data as Article[]));
+      if (data.length < batchSize) break;
+      from += batchSize;
+    }
+
+    return allData;
   }
 
   async getStats(): Promise<ArticleStats> {
-    const { data, error } = await this.client.from('articles').select('status');
-    if (error) throw error;
+    const statuses: Array<keyof ArticleStats> = ['pending', 'approved', 'rejected', 'posted', 'failed', 'blocked', 'manual_review'];
     const stats: ArticleStats = { pending: 0, approved: 0, rejected: 0, posted: 0, failed: 0, blocked: 0, manual_review: 0, total: 0 };
-    for (const row of data ?? []) {
-      const s = row.status as keyof ArticleStats;
-      if (s in stats) (stats[s] as number)++;
-      stats.total++;
-    }
+    await Promise.all(statuses.map(async (s) => {
+      const { count } = await this.client
+        .from('articles')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', s);
+      (stats[s] as number) = count ?? 0;
+      stats.total += count ?? 0;
+    }));
     return stats;
   }
 

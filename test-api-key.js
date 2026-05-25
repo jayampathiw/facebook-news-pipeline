@@ -9,15 +9,18 @@ console.log("KEY prefix:", process.env.ANTHROPIC_KEY?.slice(0, 12) + "...\n");
 
 const client = new Anthropic({
   apiKey: process.env.ANTHROPIC_KEY,
+  timeout: 10_000,
   ...(process.env.ANTHROPIC_BASE_URL && {
     baseURL: process.env.ANTHROPIC_BASE_URL,
   }),
 });
 
+// Models supported by api.oneprovider.dev (as reported by the provider)
 const MODELS = [
-  "claude-haiku-4-5",
   "claude-haiku-4-5-20251001",
   "claude-sonnet-4-6",
+  "claude-opus-4-6",
+  "claude-opus-4-7",
 ];
 
 for (const model of MODELS) {
