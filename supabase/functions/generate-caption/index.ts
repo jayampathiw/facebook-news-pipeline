@@ -141,7 +141,12 @@ BLOC 6 — SOURCE (obligatoire)
 📰 Source(s) : [nom de la source fourni dans les données de l'article]
 
 BLOC 7 — CTA (obligatoire)
-👉 Suivez [NOM_PAGE] pour rester informé de l'actualité [pays/thème] — chaque jour.
+Le CTA DOIT être rédigé dans la langue cible — JAMAIS en français pour un article italien.
+- Français : 👉 Suivez [NOM_PAGE] pour rester informé de l'actualité [pays/thème] — chaque jour.
+- Italiano : 👉 Segui [NOM_PAGE] per restare informato sull'attualità [paese/tema] — ogni giorno.
+- English : 👉 Follow [PAGE_NAME] to stay informed about [country/topic] — every day.
+- Svenska : 👉 Följ [SIDNAMN] för att hålla dig informerad om [nyheter] — varje dag.
+Utiliser le verbe et la formule exacts fournis dans le message utilisateur (instruction ligne 7).
 
 HASHTAGS (intégrés à la fin du texte du post) :
 - 1 à 2 hashtags spécifiques au sujet de l'article (ex : #SMIC, #ReformeRetraites, #Vaccination)
@@ -339,7 +344,65 @@ Valeurs dominantes : sécurité de la famille, santé (maladies chroniques, coû
 Ce qui résonne : victimes nommées avec prénom et âge ; angle "nonna/madre/famiglia" ; risques sanitaires concrets (médicaments, hôpitaux, maladies chroniques) ; crimes contre personnes âgées ou enfants ; hausses des prix alimentaires ou médicaux ; nouvelles du Vatican ; histoires de justice rendue ou déniée ; tragédies humaines avec protagoniste identifié.
 Ce qui ne résonne pas : mèmes partisans ou débats de couloir parlementaire ; géopolitique abstraite ; fiscalité complexe sans impact sur la pension ; culture tech ou jeunes urbains.
 Règle de ton : pour IT, si l'article peut être cadré via une personne nommée (victime, bénéficiaire, protagoniste), l'utiliser dans le bloc 1 plutôt qu'une institution.
-Emojis appropriés pour IT : 🙏 (solidarité, foi), ❤️ (famille, émotion), ⚠️ (alerte santé/sécurité), 🕊️ (décès/hommage). Éviter les emojis politiques (🗳️, 🏛️) pour les articles Société.`;
+Emojis appropriés pour IT : 🙏 (solidarité, foi), ❤️ (famille, émotion), ⚠️ (alerte santé/sécurité), 🕊️ (décès/hommage). Éviter les emojis politiques (🗳️, 🏛️) pour les articles Société.
+
+═══════════════════════════════════════════════════════════════
+SECTION 6 — SYSTÈME 4 MODES IDENTITAIRES (IT et FR uniquement)
+═══════════════════════════════════════════════════════════════
+
+Pour les articles IT et FR, classifier en l'un des 4 modes avant de rédiger, puis écrire l'ENSEMBLE du post à travers ce prisme. Pour AU et SE : ignorer cette section.
+
+ITALIE (IT) — 4 MODI IDENTITARI :
+
+ORGOGLIO 🇮🇹 — L'Italia primeggia
+Trigger : risultato sportivo, eccellenza italiana riconosciuta all'estero, record, premiazione, leadership mondiale.
+Hook : non la notizia — l'orgoglio. "L'Italia lo ha fatto ancora." / "Il mondo ha riconosciuto ciò che sapevamo già."
+Emoji : 🇮🇹 🏆 ⭐ 🤌 ❤️ (mai due bandiere adiacenti)
+Guardrail : solo notizie chiaramente positive. Non per articoli giudiziari, crisi o controversie.
+
+RESILIENZA 💪 — L'Italia si rialza
+Trigger : crisi economica, carovita, catastrofe naturale, difficoltà collettiva strutturale.
+Hook : difficoltà + risposta italiana. "Gli italiani hanno superato crisi ben peggiori."
+Emoji : 💪 🙏 ❤️ 🇮🇹 (tono solidarietà, non trionfo)
+Guardrail : non in caso di vittime identificate. Solo crisi strutturali/collettive.
+
+DIBATTITO 🔥 — L'Italia si divide
+Trigger : riforma controversa, decisione politica clivante, tema divisivo nazionale.
+Hook : la spaccatura. "L'Italia si divide su [tema]." / "Due visioni dell'Italia si scontrano."
+Emoji : ⚡ 🔥 💬 🤔 (mai il tricolore in contesto politico)
+Guardrail : presentare SEMPRE i due lati. Se boost_eligible=false : solo ⚡ e 💬.
+
+PATRIMONIO 🏛️ — L'Italia che non dimentica
+Trigger : storia, arte, cultura, anniversario, personalità storica, tradizione italiana.
+Hook : legame passato-presente. "Cent'anni fa..." / "Una tradizione che resiste."
+Emoji : 🏛️ 🎨 🍕 🎭 📜 ❤️ (tono nostalgico, caldo)
+
+FRANCE (FR) — 4 MODES IDENTITAIRES :
+
+FIERTÉ 🇫🇷 — La France excelle
+Trigger : victoire sportive française, excellence culturelle reconnue, prix international, leadership diplomatique.
+Hook : non la victoire — l'identité. "La France a prouvé ce que le monde savait déjà."
+Emoji : 🇫🇷 🏆 ⭐ ⚜️ ❤️ (jamais deux drapeaux adjacents ; ⚜️ pour culture/patrimoine)
+Guardrail : uniquement nouvelles clairement positives. Pas pour articles controversés ou judiciaires.
+
+RÉSISTANCE 💙 — La France tient
+Trigger : crise économique, hausse des prix, difficulté sociale collective, mouvement social.
+Hook : difficulté + réponse française. "Les Français ne lâchent pas."
+Emoji : 💙 🙏 ✊ 🇫🇷 (ton solidaire, pas triomphant)
+Guardrail : pas en cas de victimes identifiées. RÉSISTANCE uniquement pour crises structurelles/collectives.
+
+DÉBAT ⚡ — La France se divise
+Trigger : réforme controversée, sujet clivant national (retraites, immigration, laïcité).
+Hook : la fracture. "La France se divise sur [sujet]." / "Deux visions de la France s'affrontent."
+Emoji : ⚡ 🔥 💬 🤔 (jamais le drapeau tricolore en contexte politique)
+Guardrail : toujours présenter les DEUX côtés. Si boost_eligible=false : uniquement ⚡ et 💬.
+
+PATRIMOINE 🏛️ — La France qui ne s'oublie pas
+Trigger : histoire française, art, culture, anniversaire, personnalité historique, tradition régionale.
+Hook : lien passé-présent. "Il y a cent ans..." / "La France qui a donné au monde..."
+Emoji : 🏛️ 🎨 ⚜️ 🥖 🎭 ❤️ (ton nostalgique, chaleureux)
+
+RÈGLE : identity_mode est la lentille pour l'ENSEMBLE du post. Si identity_mode = null, structure 7 blocs standard.`;
 
 const SEED_COMMENT_TEMPLATES: Record<string, { id: string; t: string }[]> = {
   FR: [
@@ -410,6 +473,33 @@ async function generateAllContent(
   // Cap summary at 1500 chars — very long articles caused JSON truncation at 1200 output tokens.
   const summary = (article.summary || 'Non disponible').slice(0, 1500);
 
+  const isIdentityLang = captionLanguage === 'italiano' || captionLanguage === 'français';
+  const ctaMap: Record<string, string> = {
+    'français': `Suivez ${pageName} pour rester informé de l'actualité française — chaque jour.`,
+    'italiano': `Segui ${pageName} per restare informato sull'attualità italiana — ogni giorno.`,
+    'English': `Follow ${pageName} to stay informed — every day.`,
+    'svenska': `Följ ${pageName} för att hålla dig informerad — varje dag.`,
+  };
+  const ctaInstruction = ctaMap[captionLanguage] ?? `Suivez ${pageName} pour rester informé — chaque jour.`;
+  const identityModeChoices = captionLanguage === 'italiano'
+    ? '• ORGOGLIO — risultato sportivo, eccellenza italiana, record, premio\n• RESILIENZA — crisi economica, carovita, difficoltà collettiva\n• DIBATTITO — riforma controversa, tema divisivo, dibattito parlamentare\n• PATRIMONIO — storia, arte, cultura, anniversario, tradizione'
+    : '• FIERTÉ — victoire française, excellence culturelle, reconnaissance internationale\n• RÉSISTANCE — crise économique, hausse des prix, difficulté sociale\n• DÉBAT — réforme controversée, sujet clivant, débat parlementaire\n• PATRIMOINE — histoire, art, culture, anniversaire, tradition régionale';
+  const identityModeList = captionLanguage === 'italiano'
+    ? 'ORGOGLIO|RESILIENZA|DIBATTITO|PATRIMONIO'
+    : 'FIERTÉ|RÉSISTANCE|DÉBAT|PATRIMOINE';
+  const modeStep = isIdentityLang
+    ? `\nÉTAPE 0 — MODE IDENTITAIRE (choisir avant de rédiger, voir Section 6) :\n${identityModeChoices}\nSi aucun mode ne s'applique (fait divers neutre, international pur, judiciaire) : identity_mode = null.\nLe mode est la lentille éditoriale pour l'ENSEMBLE du post — pas un ajout en fin de texte.\n`
+    : '';
+  const hookInstruction = isIdentityLang
+    ? "si mode identitaire actif : cadrer en termes d'identité nationale (Section 6) ; sinon : tension/conflit central avec acteur nommé"
+    : 'tension/conflit central avec acteur nommé si possible';
+  const questionGuide = captionLanguage === 'italiano'
+    ? `ORGOGLIO → "Di cosa sei più orgoglioso/a dell'Italia ?" ; RESILIENZA → "Come stai affrontando questo ?" ; DIBATTITO → "Cosa dice questo dell'Italia che vogliamo ?" ; PATRIMONIO → "Cosa trasmetti di italiano ai tuoi figli ?" ; null → domanda chiusa o binaria`
+    : captionLanguage === 'français'
+    ? `FIERTÉ → "Qu'est-ce qui vous rend le plus fier(ère) d'être français(e) ?" ; RÉSISTANCE → "Comment vous en sortez-vous ?" ; DÉBAT → "Qu'est-ce que cela dit de la France que nous voulons ?" ; PATRIMOINE → "Quel est votre patrimoine français préféré ?" ; null → fermée ou binaire`
+    : 'fermée ou binaire (pas ouverte seule)';
+  const jsonSchema = `{"intro":"[blocs 1-4]","question":"[bloc 5]","cta":"[blocs 6-7 + hashtags]","hashtags":["#Tag1","#Tag2","#Tag3"],"seed_comment":"[template rempli]","seed_comment_template_id":"[id du template]","story_category":"[Politique|Société|Sport|Culture|International|Santé|Environnement]","recommended_format":"[image|video|poll|carousel]","content_signals":{"binary_frame":true,"poll_fit_score":3,"protagonist_named":"Dupont","best_format":"post","fr_it_stake_first_sentence":true,"pillar_hint":"france-en-debat"}${isIdentityLang ? `,"identity_mode":"[${identityModeList}|null]"` : ''}}`;
+
   const [captionRes, seoRes, imageRes] = await Promise.all([
     anthropic.messages.create({
       model,
@@ -418,22 +508,22 @@ async function generateAllContent(
       messages: [{
         role: 'user',
         content: `OUTPUT FORMAT: you must respond with ONLY a raw JSON object. No markdown, no text before or after, no code fences. Start your response with { and end with }.
-
+${modeStep}
 Rédige un post Facebook complet pour ${pageName} en ${captionLanguage}.
 Hashtag fixe de la page : ${pageHashtag}
 ${article.boost_eligible === 'false' || article.boost_eligible === false ? `\nNote : boost_eligible=false — adapter le registre selon les règles Section 4 ${article.country}.` : ''}
 Structure du post (dans l'ordre, sans labels visibles dans le texte) :
-1. Hook — tension/conflit central avec acteur nommé si possible
+1. Hook — ${hookInstruction}
 2. Contexte — 2-3 phrases neutres (qui, quoi, où, quand)
 3. Détails — 3-5 bullets commençant par •
 4. Enjeux — 1 phrase sur l'impact concret pour le lecteur
-5. Question d'engagement — fermée ou binaire (pas ouverte seule)
+5. Question d'engagement — ${questionGuide}
 6. Source : 📰 Source(s) : ${article.source}
-7. CTA : 👉 Suivez ${pageName} pour rester informé...
+7. CTA : 👉 ${ctaInstruction}
 8. Hashtags (max 5, inline à la fin)
 
 JSON attendu :
-{"intro":"[blocs 1-4]","question":"[bloc 5]","cta":"[blocs 6-7 + hashtags]","hashtags":["#Tag1","#Tag2","#Tag3"],"seed_comment":"[template rempli]","seed_comment_template_id":"[id du template]","story_category":"[Politique|Société|Sport|Culture|International|Santé|Environnement]","recommended_format":"[image|video|poll|carousel]","content_signals":{"binary_frame":true,"poll_fit_score":3,"protagonist_named":"Dupont","best_format":"post","fr_it_stake_first_sentence":true,"pillar_hint":"france-en-debat"}}
+${jsonSchema}
 
 Templates éligibles pour le seed_comment (choisir un parmi ces IDs, remplir {topic_noun} en ${captionLanguage}) :
 ${pickEligibleTemplates(article.country, recentSeedTemplateIds).map((t: { id: string; t: string }) => `[${t.id}] "${t.t}"`).join('\n')}
@@ -478,7 +568,7 @@ IMAGE_HEADLINE rules (STRICT — count words before responding):
 
 IMAGE_PROMPT — follow these two steps:
 
-STEP 1 · Choose ONE approach that best fits this article:
+STEP 1 · Choose ONE approach (A–F) that best fits this article:
 
 A · ANONYMOUS PERSON IN CONTEXT — Article is centrally about a specific athlete, performer, or politician in action.
    → Person seen from BEHIND or SIDE only, face never visible. Hyper-specific to this article's exact sport/event/emotion/venue.
@@ -496,6 +586,11 @@ D · SYMBOLIC / CONCEPTUAL — Abstract institutional debate, geopolitical tensi
 
 E · ENVIRONMENTAL / NATURE / HEALTH CRISIS — Epidemic, ecological event, natural phenomenon, specific organism.
    → Show the specific organism, landscape, or medical setting matching this article exactly. Be precise about geography, vegetation, lighting, atmosphere.
+
+F · IDENTITY / PRIDE / HERITAGE — Article is about national achievement, cultural celebration, or collective pride (sports victory, heritage anniversary, artistic excellence) with no single dominant person or specific venue.
+   → Anonymous crowd at a famous national landmark with the country's flag prominent and central. Faces visible but not identifiable (motion blur, backs, distance). Square 1:1 composition. Warm filter with tricolore colour accents (IT: green/white/red; FR: blue/white/red).
+   → Italy examples: crowd at Colosseum / Piazza Venezia / Stadio Olimpico with waving Italian tricolore, golden hour. France examples: crowd on Champs-Élysées / Place de la République with French tricolore, warm sunset.
+   → ONLY for clearly celebratory or heritage content. For news, politics, crime, health — use A–E instead.
 
 STEP 2 · Write the image_prompt:
 - Write in ${captionLanguage}. Begin: "Photographie cinématographique ultra-réaliste, style photojournalisme hyper-détaillé," (or Italian equivalent for IT articles).
@@ -564,7 +659,10 @@ Summary: ${summary}`,
     seed_comment_template_id: captionData.seed_comment_template_id || null,
     story_category: captionData.story_category || null,
     hashtags: Array.isArray(captionData.hashtags) ? captionData.hashtags : [],
-    content_signals: captionData.content_signals ?? {},
+    content_signals: {
+      ...(captionData.content_signals ?? {}),
+      ...(captionData.identity_mode ? { identity_mode: captionData.identity_mode } : {}),
+    },
     recommended_format: recommendedFormat,
     post_format: recommendedFormat,
   };
