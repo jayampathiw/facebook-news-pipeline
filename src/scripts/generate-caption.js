@@ -36,8 +36,12 @@ for (const id of ids) {
     ]);
 
     const pillar = caption.content_signals?.pillar_hint ?? null;
+    const mergedSignals = {
+      ...(caption.content_signals ?? {}),
+      ...(caption.identity_mode ? { identity_mode: caption.identity_mode } : {}),
+    };
     const weeklyPillarCounts = await getPillarWeeklyCounts(article.country);
-    const updatedArticle = { ...article, pillar, content_signals: caption.content_signals ?? {} };
+    const updatedArticle = { ...article, pillar, content_signals: mergedSignals };
     const publish_score = computePublishScore(updatedArticle, weeklyPillarCounts, SLOTS[article.country] ?? []);
 
     await updateArticle(id, {
@@ -46,7 +50,7 @@ for (const id of ids) {
       seed_comment: caption.seed_comment ?? null,
       seed_comment_template_id: caption.seed_comment_template_id ?? null,
       story_category: caption.story_category ?? null,
-      content_signals: caption.content_signals ?? {},
+      content_signals: mergedSignals,
       image_headline: imageResult.imageHeadline,
       image_prompt: imageResult.prompt,
       formatted_image_prompt: formatImagePrompt(imageResult.prompt, imageResult.imageHeadline, config.watermarkFile),
