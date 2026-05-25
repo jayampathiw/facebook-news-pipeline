@@ -625,6 +625,158 @@ The most valuable data right now would be **ItaliaOggi's own post performance** 
 
 ---
 
+### 7.12 Meta Insights Analysis — ItaliaOggi (Apr 27 – May 24, 2026)
+
+**Source:** `pages/Apr-27-2026_May-24-2026_Content_Publish time_Summary_1379137337359329.csv`  
+**Page name in data:** "Vivere in Italia" (page ID: 61589128254417) — same pipeline, same audience  
+**Posts analyzed:** 93 posts over 28 days  
+**Overall scale:** Very new page — max impressions 89, max interactions 5. Numbers are small but directional patterns are already clear.
+
+#### Top 5 posts by impressions
+
+| Post | Impressions | Comments | Why it worked |
+|---|---|---|---|
+| Italian debt surpassing Greece | **89** | 5 | Shock + personal stake ("ogni italiano porta €45K di debito") |
+| Flotilla controversy (activists vs. government) | **68** | 5 | Political confrontation, identity at stake |
+| Scooter license plate law — system not ready | **49** | 2 | Classic Italian bureaucracy absurdity — relatable anger |
+| Nordio sues journalist (press freedom) | **48** | 1 | Italian institutional values under threat |
+| Trump considering pulling US bases from Italy | **31** | 1 | Italian sovereignty at risk |
+
+#### Only shared post
+
+The military/flag image ("SE AMI L'ITALIA, premi il pulsante 'Segui'") — **the only post with a share** in the entire dataset. Shares cost the user social capital and are the strongest engagement signal. This is a pure identity post, not a news post. Confirms the Grazie Italia research: military + flag + identity triggers sharing behaviour that news posts alone do not.
+
+#### What the data tells us
+
+**1. Triggered pride outperforms generic pride.**  
+The top posts don't say "Italy is great." They say "Italy is failing in this specific way, and you should care." The debt/Greece post works because it's shameful AND personal. The bureaucracy post works because every Italian has lived it. Anger and shame are emotions too — and they drive comments.
+
+**2. DEBATE mode will dominate.**  
+4 of the top 5 posts are DEBATE-mode articles (political controversy, institutional failure, Italian sovereignty). PRIDE mode is the identity anchor but DEBATE mode drives news engagement.
+
+**3. The DEBATE question needs upgrading.**  
+Current question: "Sei d'accordo con questa scelta?" (are you happy about this?)  
+Better: **"Cosa dice questo dell'Italia che vogliamo?"** (what does this say about the Italy we want?) — ties the news story back to national identity instead of just asking for an opinion.
+
+**4. French CTA bug confirmed — active in production.**  
+Several Italian posts contain French-language CTAs: *"Suivez Italia Oggi pour rester informé de l'actualité italiana — chaque jour."* This is the pipeline incorrectly generating French CTAs for Italian articles. Must be fixed before deploying any caption update.
+
+---
+
+### 7.13 Implementation Plan — CTA Bug Fix + 4-Mode Caption System
+
+Two-phase implementation. Phase 1 must be completed and deployed before Phase 2 begins.
+
+---
+
+#### Phase 1 — Fix the French CTA Bug
+
+**Problem:** Italian posts are receiving French-language CTAs because the `captionLanguage` or `pageName` variable is not being correctly applied to the CTA block in the prompt. The CTA "Suivez Italia Oggi pour rester informé..." is French appearing on Italian content.
+
+**Root cause to verify:** In `generateCaption()`, the CTA instruction in the user prompt references `pageName` and `captionLanguage`. If either variable is wrong at call time, the CTA defaults to the wrong language. The edge function (`generate-caption/index.ts`) may also have hardcoded French strings in the CTA template.
+
+**Files to change:**
+- `src/services/claude.js` — `generateCaption()` user prompt, CTA instruction line
+- `supabase/functions/generate-caption/index.ts` — same section
+
+**Fix:** Ensure the CTA line explicitly instructs Claude: *"Write the CTA in [captionLanguage]. Never mix languages within a single post."* Also audit the edge function for any hardcoded French strings in the prompt or output parser.
+
+**Test:** Run `node src/scripts/generate-caption.js <italian-article-id>` and confirm CTA is in Italian.
+
+**Deploy:** `supabase functions deploy generate-caption --project-ref nnxtvbolhuvihlpwppbj`
+
+**Verification:** Regenerate captions for 3–5 Italian articles, confirm no French strings appear.
+
+---
+
+#### Phase 2 — 4-Mode Identity Caption System
+
+**What changes:** Replace the flat news-wire caption structure with a mode-first approach. Claude classifies the article first, then writes the entire caption — hook, context, bullets, engagement question, CTA — through that mode's identity lens.
+
+**Files to change (must stay in sync):**
+- `src/services/claude.js` — `generateCaption()` user prompt (the large content block passed as the `content` field)
+- `supabase/functions/generate-caption/index.ts` — identical change
+
+**No other files change.** No schema migration, no dashboard update, no Vercel deploy.
+
+##### Prompt structure — what Claude receives
+
+```
+STEP 1 — CLASSIFY: Choose the mode that best fits this article.
+
+IT modes:
+  ORGOGLIO   — Italian win, achievement, excellence, sport, Made in Italy
+  RESILIENZA — Crisis, disaster, difficulty, volunteers, Italian solidarity
+  DIBATTITO  — Policy, politics, reform, institutional failure, sovereignty at risk
+  PATRIMONIO — Culture, tradition, history, heritage, art, food, landscape
+
+FR modes:
+  FIERTÉ     — French achievement, excellence, cultural win
+  RÉSISTANCE — Crisis, solidarity, French resilience
+  DÉBAT      — Politics, reform, institutional debate, French values at stake
+  PATRIMOINE — Culture, history, art de vivre, French heritage
+
+STEP 2 — WRITE THE CAPTION using the mode's identity lens:
+  - The FIRST line is the identity frame, not the news headline
+  - The news is the PROOF of the identity claim, not the subject
+  - At least ONE emotion trigger must appear in the intro block
+  - Use the emoji vocabulary for this mode (6–10 total, never two flags adjacent)
+  - The engagement question must connect back to national identity/character,
+    not just ask "do you agree?" — frame it as "what does this say about [country]?"
+  - CTA must be in [captionLanguage] — never mix languages
+  - For judicial/criminal/victim articles: skip the identity frame entirely,
+    use neutral factual tone, no pride/resilience framing
+```
+
+##### Mode-specific rules for DEBATE (most-used mode)
+
+The data shows DEBATE mode dominates for news content. The standard question "Sei d'accordo?" is too passive. Upgrade:
+
+| Old question | New question |
+|---|---|
+| "Sei d'accordo con questa riforma?" | "È questo il Paese che vogliamo lasciare ai nostri figli?" |
+| "Pensate che il governo abbia ragione?" | "Cosa dice questo dell'Italia in cui viviamo?" |
+| "È abbastanza?" | "Noi italiani meritiamo di meglio — sì o no?" |
+
+The upgrade works because it forces the reader to self-identify as Italian and take a position on Italy's direction, not just rate a government decision.
+
+##### Emotion triggers required per mode
+
+| Mode | Mandatory trigger | Optional |
+|---|---|---|
+| ORGOGLIO | "L'Italia lo ha fatto di nuovo" / achievement opening | Family/roots, escalation |
+| RESILIENZA | "Gli italiani si rialzano sempre" / defiant loyalty | We-language, name the emotion |
+| DIBATTITO | National stakes framing / contrast Italy vs. potential | We-language, escalation |
+| PATRIMONIO | Roots/nostalgia / "questo è chi siamo" | Sensory (smell of coffee, taste) |
+
+##### What NOT to generate (guardrails)
+
+- **No identity framing on:** criminal cases, victim stories, juvenile cases, sexual violence — neutral factual tone only
+- **No political affirmation:** never frame as support for a specific party or leader
+- **No forced pride on clearly negative stories** — use RESILIENZA if the story has a resilience angle; otherwise use neutral DIBATTITO framing
+- **No French strings in Italian posts, no Italian strings in French posts**
+
+##### Deploy sequence
+
+1. Update `src/services/claude.js`
+2. Update `supabase/functions/generate-caption/index.ts` (verbatim same change)
+3. Run smoke test: `node src/scripts/generate-caption.js <id>` on 5 articles (one per mode type + one judicial/negative)
+4. Verify output: mode chosen correctly, identity lens in first line, question upgraded, CTA in correct language, emoji count 6–10
+5. Deploy: `supabase functions deploy generate-caption --project-ref nnxtvbolhuvihlpwppbj`
+6. Re-generate captions for 10 pending articles in dashboard, review before posting
+
+##### Calibration after go-live
+
+Track for 3 weeks post-deploy:
+- Comments per post (target: increase from ~0.5 avg to ~1.5)
+- Shares per post (target: at least 1 share per week across all posts)
+- Which mode generates the most comments
+- Whether the identity question drives more discussion than the old binary question
+
+Adjust mode selection logic or question phrasing based on what the data shows.
+
+---
+
 ## 8. Status Tracker
 
 ### Research completed ✅
@@ -655,9 +807,14 @@ The most valuable data right now would be **ItaliaOggi's own post performance** 
 - [x] Decision made: implement 4-mode system for both IT and FR in the same prompt change
 - [x] Identified research gap: Grazie Italia data is about their audience, not ItaliaOggi's — we lack our own post performance data
 - [x] Decision made: proceed without deeper pre-implementation research; treat first 3 weeks post-launch as live calibration
+- [x] Analyzed ItaliaOggi Meta Insights (Apr 27 – May 24, 2026) — 93 posts, confirmed DEBATE mode dominates, military/flag identity post = only shared post
+- [x] Confirmed French CTA bug in production — Italian posts receiving French-language CTAs
+- [x] Finalized 2-phase implementation plan: Phase 1 = CTA bug fix, Phase 2 = 4-mode system
+- [x] Upgraded DEBATE mode question formula: "what does this say about the Italy we want?" instead of "do you agree?"
+- [x] Defined guardrails: no identity framing on criminal/victim/judicial articles
 
 ### Decisions pending ⏳
-- [ ] **Check Meta Insights for ItaliaOggi** — pull top 5 posts by engagement before implementing. If data exists, use it to validate mode selection logic. If page too new, proceed with Grazie Italia model as proxy.
+- [ ] **Identity post mix ratio** — What % of ItaliaOggi posts should be pride/identity vs. news? (Suggested starting point: 70% news, 30% identity)
 - [ ] **Identity post mix ratio** — What % of ItaliaOggi posts should be pride/identity vs. news? (Suggested starting point: 70% news, 30% identity)
 - [ ] **English diaspora content** — Should ItaliaOggi publish some posts in English to reach the 30M Italian diaspora?
 - [ ] **Square format adoption** — Adopt 1:1 for identity posts alongside current 9:16 news images?
@@ -668,7 +825,7 @@ The most valuable data right now would be **ItaliaOggi's own post performance** 
 - [ ] **2 June 2026 holiday plan** — Festa della Repubblica is already past for 2026. Plan for **2027**: start ramp on 20 May 2027.
 
 ### Still to research 🔍
-- [ ] ItaliaOggi Meta Insights — top 5 posts by engagement (needed before caption implementation)
+- [x] ItaliaOggi Meta Insights — analyzed (Apr 27 – May 24, 2026 CSV, 93 posts)
 - [ ] Top 10 Grazie Italia posts by actual engagement (requires logged-in Facebook access or paid analytics tool)
 - [ ] Reel music tracks — copyright/royalty-free status of audio used
 - [ ] Gumroad product — search under different personal brand name, not "Grazie Italia"
@@ -678,8 +835,9 @@ The most valuable data right now would be **ItaliaOggi's own post performance** 
 - [ ] Whether the two page IDs (61580290446363 and 710233802183967) are the same admin or separate entities
 
 ### To build (technical) 🔨
-- [ ] **4-mode identity caption system** — update `generateCaption()` prompt in `src/services/claude.js` and `supabase/functions/generate-caption/index.ts` with mode selection, emotion trigger vocabulary, emoji system (IT + FR variants)
-- [ ] Deploy edge function after caption prompt update
+- [ ] **Phase 1 — Fix French CTA bug** — audit `generateCaption()` in `src/services/claude.js` and edge function; add explicit language enforcement to CTA instruction; deploy edge function
+- [ ] **Phase 2 — 4-mode identity caption system** — update `generateCaption()` prompt in `src/services/claude.js` and `supabase/functions/generate-caption/index.ts` with mode selection (ORGOGLIO/RESILIENZA/DIBATTITO/PATRIMONIO for IT; FIERTÉ/RÉSISTANCE/DÉBAT/PATRIMOINE for FR), emotion triggers, emoji system, upgraded DEBATE question, guardrails; deploy edge function
+- [ ] **Phase 2 smoke test** — 5 articles (one per mode + one judicial/negative), verify mode choice, identity lens, question, CTA language, emoji count
 - [ ] Image prompt variant: "AI crowd at iconic Italian location + flag" in 1:1 square style
 - [ ] Caption template for manual identity posts in the pipeline
 - [ ] Content calendar: 70% news + 30% identity post schedule
@@ -757,5 +915,5 @@ Report everything raw — I will synthesize it into this document.
 
 ---
 
-*Created: 2026-05-25 | Last updated: 2026-05-25 (4-mode caption system + France implementation + research assessment added) | Next review: 2026-06-25*  
+*Created: 2026-05-25 | Last updated: 2026-05-25 (Meta Insights analysis + 2-phase implementation plan added) | Next review: 2026-06-25*  
 *Raw images stored at: `/home/jayam/projects/personal/facebook-news-pipeline/pages/`*
