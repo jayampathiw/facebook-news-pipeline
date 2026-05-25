@@ -432,6 +432,199 @@ The first three cost almost nothing and could double engagement within a month.
 
 ---
 
+### 7.9 Enhanced Caption System — 4 Modes with Emotion + Emoji
+
+The initial improvement #1 concept (add a closing identity line) was rejected as too superficial — the identity line reads as bolted on because the skeleton underneath is still a news wire report. The better approach is to make identity the **lens** through which the entire caption is written, not the footnote at the end.
+
+#### The 4 caption modes
+
+Claude picks the mode first based on the article, then writes the entire caption — hook, context, bullets, question — through that lens.
+
+| Mode | When to use | Opening frame (IT) | Question style |
+|---|---|---|---|
+| **PRIDE** | Win, achievement, Italian excellence | "L'Italia lo ha fatto di nuovo." / "Solo l'Italia sa fare questo." | "Di cosa sei più orgoglioso?" |
+| **RESILIENCE** | Disaster, crisis, difficulty, volunteers | "Gli italiani si rialzano sempre." | "Hai visto questo spirito nella tua comunità?" |
+| **DEBATE** | Policy, politics, reform, controversy | "Che Italia vogliamo?" | Binary: "Sei d'accordo con questa scelta?" |
+| **HERITAGE** | Culture, tradition, history, art | "Questo è chi siamo." | Nostalgic or pride-based |
+
+#### Emotion trigger vocabulary (at least one per caption)
+
+| Trigger | How | Example |
+|---|---|---|
+| **"We" language** | Tribal, collective | "Noi italiani lo sappiamo da sempre." |
+| **Family / roots** | Personal, ancestral | "I tuoi nonni lo facevano ogni giorno." |
+| **Contrast / pride** | Italy vs. the world | "Mentre il mondo guarda, l'Italia agisce." |
+| **Defiant loyalty** | Love in adversity | "Anche quando è difficile — questa è casa nostra." |
+| **Name the emotion** | Don't make them guess | "Questo si chiama orgoglio italiano." |
+| **Escalation** | Personal → national → universal | Start with one person, end with all of Italy |
+
+#### Emoji system
+
+**Rule:** 6–10 emojis per post total. Never two flags adjacent on the same line except the closing CTA. Emojis are punctuation for emotion, not decoration.
+
+| Position | Role | Emojis |
+|---|---|---|
+| Opening anchor | Always — identity signal | 🇮🇹 |
+| PRIDE mode | Strength, win | 🏆 💪 🤌 ✨ |
+| RESILIENCE mode | Solidarity, hope | ❤️ 🙏 🤝 🌅 |
+| DEBATE mode | Stakes, participation | 🔥 ⚖️ 💬 👇 |
+| HERITAGE mode | Culture, depth | 🏛️ 🎨 🌹 🤌 |
+| Closing CTA | Flag + colour | 🇮🇹 💚🤍❤️ |
+
+**Context emojis for bullet points (pick by topic):**
+
+| Topic | Emojis |
+|---|---|
+| Food & cuisine | 🍕 🍝 🍷 ☕ 🤌 |
+| Sport | ⚽ 🏎️ 🚴 🥊 🏆 |
+| Culture / art | 🎨 🎭 🎵 🏛️ 📚 |
+| Nature / landscape | 🌊 🏔️ 🌿 ☀️ 🌅 |
+| Economy / work | 💼 💰 📈 🏗️ |
+| Military / heroes | 🎖️ 🦅 🇮🇹 |
+| Health | ❤️‍🩹 💊 🏥 |
+| Law / politics | ⚖️ 🏛️ 📜 🗳️ |
+
+#### Full caption examples
+
+*Article: New minimum wage law approved.*
+
+**PRIDE mode:**
+```
+L'Italia protegge chi lavora. 🇮🇹 💪
+
+Il governo ha approvato oggi una riforma storica sul lavoro — milioni di italiani la aspettavano da anni.
+
+• 📈 Salario minimo: +2,2% da gennaio 2026
+• 💼 Interessa ristorazione, commercio, assistenza domiciliare
+• 🏗️ Costo per le aziende: +2,2% sulla massa salariale
+
+I tuoi nonni lavoravano senza protezioni. Tu hai un paese che ti guarda le spalle.
+Questo si chiama progresso italiano. 🤌
+
+È abbastanza per te, o vuoi di più? 👇
+📰 Fonte: Repubblica
+👉 Segui ItaliaOggi per l'attualità italiana ogni giorno.
+#ItaliaOggi 🇮🇹 #lavoroitaliano #madeinitaly #italia
+```
+
+*Article: Flooding — 3,000 volunteers mobilise in 24 hours.*
+
+**RESILIENCE mode:**
+```
+Gli italiani non aspettano. Si alzano e vanno. 🇮🇹 ❤️
+
+In Emilia-Romagna, oltre 3.000 volontari si sono mobilitati in meno di 24 ore dopo l'alluvione.
+
+• 🌊 Zone colpite: Modena, Ferrara, Ravenna
+• 🤝 Volontari: Protezione Civile + privati cittadini
+• 🏗️ Operazioni: sgombero fango, distribuzione viveri, assistenza anziani
+
+Non è il governo che fa grande l'Italia. Sono queste persone. 🙏
+
+Hai vissuto qualcosa del genere nella tua comunità? Raccontacelo nei commenti. 👇
+📰 Fonte: Corriere della Sera
+👉 Segui ItaliaOggi — l'Italia vera, ogni giorno.
+#ItaliaOggi 🇮🇹 #emiliaromagna #italianisinasce 💚🤍❤️
+```
+
+**Key implementation note:** This is still a prompt change only — no schema change, no DB migration, no dashboard update. Claude gets the mode table, emotion trigger vocabulary, and emoji system in the caption prompt. It classifies first, then writes the full caption through that mode's lens.
+
+---
+
+### 7.10 France Implementation — Decision and Approach
+
+**Decision: implement for both IT and FR in the same code change.**
+
+The opportunity is identical for France Aujourd'hui — no French identity page on Facebook has a journalism pipeline. The extra effort is 30 minutes of prompt writing for the French variant, not a second project.
+
+#### The emotional register is fundamentally different
+
+Italy and France have different national pride personalities. Getting this wrong makes captions feel fake.
+
+| Dimension | Italy 🇮🇹 | France 🇫🇷 |
+|---|---|---|
+| **Pride style** | Warm, visceral, family, food, beauty | Intellectual, republican, cultural, social model |
+| **"We" language** | "Noi italiani" — tribal, collective | "Nous, les Français" — civic, principled |
+| **Emotional core** | Love for Italy | Belief in France's values |
+| **Share trigger** | Nostalgia, beauty, craftsmanship | Republican pride, social justice, cultural excellence |
+| **Tone** | Passionate, expressive, heart-first | Proud but measured — never overbearing |
+| **Flag usage** | 🇮🇹 on almost every line | 🇫🇷 more restrained — once or twice per post |
+
+#### French 4 modes
+
+| IT mode | FR equivalent | FR opening frame |
+|---|---|---|
+| PRIDE | FIERTÉ | "La France prouve, une fois de plus." |
+| RESILIENCE | RÉSISTANCE | "La France résiste. Elle a toujours résisté." |
+| DEBATE | DÉBAT | "Quelle France voulons-nous ?" |
+| HERITAGE | PATRIMOINE | "C'est ça, la France." |
+
+#### French emoji vocabulary
+
+| Position | Emojis |
+|---|---|
+| Anchor (always) | 🇫🇷 ⚜️ |
+| FIERTÉ | 🏆 💪 ✨ |
+| RÉSISTANCE | ❤️ 🙏 🤝 |
+| DÉBAT | 🔥 ⚖️ 💬 👇 |
+| PATRIMOINE | 🎨 🗼 🏰 🌹 |
+| Food / art de vivre | 🥖 🍷 🧀 🥐 |
+| Nature | 🌸 🌿 🌊 🏔️ |
+| Republican values | 💡 📜 ⚜️ |
+
+**Key difference:** France uses ⚜️ (fleur-de-lis) where Italy uses 🤌. Less flag density overall — French pride lives more in the text than in visual symbols.
+
+#### Side-by-side — same article type, both countries
+
+*New minimum wage increase approved.*
+
+**Italy — PRIDE:**
+> L'Italia protegge chi lavora. 🇮🇹 💪  
+> I tuoi nonni lavoravano senza protezioni. Tu hai un paese che ti guarda le spalle.  
+> Questo si chiama progresso italiano. 🤌  
+> È abbastanza per te, o vuoi di più? 👇
+
+**France — DÉBAT:**
+> La France a toujours cru que le travail mérite sa juste récompense. 🇫🇷 ⚜️  
+> Le gouvernement vient d'officialiser une hausse du SMIC de 2,2% — la troisième en deux ans.  
+> Pour des millions de Français au salaire minimum, c'est concret.  
+> C'est suffisant face à l'inflation, ou pas assez ? 👇
+
+Same structure. Same emotional principle. Completely different voice.
+
+---
+
+### 7.11 Research Honest Assessment — What We Know vs. What We're Missing
+
+#### What the Grazie Italia research actually tells us
+
+The competitor analysis was built from Grazie Italia's audience — 37K followers who came to a **pure identity page** specifically looking for flag and pride content. That audience self-selected for emotional Italian content from day one.
+
+ItaliaOggi's audience is different. They followed a **news page**. The Grazie Italia emotional formula is directional for ItaliaOggi, not prescriptive.
+
+#### The research gap
+
+| What we have | What we're missing |
+|---|---|
+| Competitor identity page analysis ✅ | ItaliaOggi's own top-performing posts |
+| General Italian/French cultural knowledge ✅ | What our specific audience responds to |
+| Emoji/CTA patterns from Grazie Italia ✅ | Whether news-page followers want more emotion |
+| 8 content pillars from identity pages ✅ | Italian/French news page best practices |
+
+The most valuable data right now would be **ItaliaOggi's own post performance** — which posts got the most likes, comments, shares. That tells us who our audience already is before we change how we speak to them.
+
+#### Decision
+
+**Proceed without waiting for deeper research, but treat the first 3 weeks post-implementation as the real research.** The reasoning:
+
+1. If ItaliaOggi is too new / engagement numbers too small, there isn't enough internal data to research anyway
+2. The caption changes are reversible — a single prompt tweak rolls back any tone that feels wrong
+3. Real audience feedback over 3 weeks beats pre-implementation research done blind
+
+**Before writing code:** Check Meta Insights for ItaliaOggi — pull the top 5 posts by engagement. If the data exists and is meaningful, it should inform the mode selection logic. If the page is too new, proceed with the Grazie Italia model as proxy.
+
+---
+
 ## 8. Status Tracker
 
 ### Research completed ✅
@@ -456,8 +649,15 @@ The first three cost almost nothing and could double engagement within a month.
 - [x] Documented concrete side-by-side examples: Grazie Italia vs ItaliaOggi approach for same story (Ferrari, flood volunteers, economic data, cultural win)
 - [x] Ranked ItaliaOggi improvement roadmap by impact/effort (5 improvements, priority order)
 - [x] Identified what NOT to copy: political affirmation pillar (divisive, risks Meta flags)
+- [x] Designed enhanced 4-mode caption system (PRIDE / RESILIENCE / DEBATE / HERITAGE) with full emotion trigger vocabulary and contextual emoji system
+- [x] Validated that closing-line approach is insufficient — identity must be the lens, not the footnote
+- [x] Designed French equivalent modes (FIERTÉ / RÉSISTANCE / DÉBAT / PATRIMOINE) with separate emoji vocabulary
+- [x] Decision made: implement 4-mode system for both IT and FR in the same prompt change
+- [x] Identified research gap: Grazie Italia data is about their audience, not ItaliaOggi's — we lack our own post performance data
+- [x] Decision made: proceed without deeper pre-implementation research; treat first 3 weeks post-launch as live calibration
 
 ### Decisions pending ⏳
+- [ ] **Check Meta Insights for ItaliaOggi** — pull top 5 posts by engagement before implementing. If data exists, use it to validate mode selection logic. If page too new, proceed with Grazie Italia model as proxy.
 - [ ] **Identity post mix ratio** — What % of ItaliaOggi posts should be pride/identity vs. news? (Suggested starting point: 70% news, 30% identity)
 - [ ] **English diaspora content** — Should ItaliaOggi publish some posts in English to reach the 30M Italian diaspora?
 - [ ] **Square format adoption** — Adopt 1:1 for identity posts alongside current 9:16 news images?
@@ -468,7 +668,8 @@ The first three cost almost nothing and could double engagement within a month.
 - [ ] **2 June 2026 holiday plan** — Festa della Repubblica is already past for 2026. Plan for **2027**: start ramp on 20 May 2027.
 
 ### Still to research 🔍
-- [ ] Top 10 posts by actual engagement (requires logged-in Facebook access or paid analytics tool)
+- [ ] ItaliaOggi Meta Insights — top 5 posts by engagement (needed before caption implementation)
+- [ ] Top 10 Grazie Italia posts by actual engagement (requires logged-in Facebook access or paid analytics tool)
 - [ ] Reel music tracks — copyright/royalty-free status of audio used
 - [ ] Gumroad product — search under different personal brand name, not "Grazie Italia"
 - [ ] TikTok presence — unconfirmed, needs verification
@@ -477,8 +678,10 @@ The first three cost almost nothing and could double engagement within a month.
 - [ ] Whether the two page IDs (61580290446363 and 710233802183967) are the same admin or separate entities
 
 ### To build (technical) 🔨
+- [ ] **4-mode identity caption system** — update `generateCaption()` prompt in `src/services/claude.js` and `supabase/functions/generate-caption/index.ts` with mode selection, emotion trigger vocabulary, emoji system (IT + FR variants)
+- [ ] Deploy edge function after caption prompt update
 - [ ] Image prompt variant: "AI crowd at iconic Italian location + flag" in 1:1 square style
-- [ ] Caption template for identity posts in the pipeline's generate-caption system
+- [ ] Caption template for manual identity posts in the pipeline
 - [ ] Content calendar: 70% news + 30% identity post schedule
 - [ ] Post scheduling aligned to 18:30 / 20:00 / 21:15 CET windows
 - [ ] 2027 Festa della Repubblica content ramp (build May 20 2027 reminder)
@@ -554,5 +757,5 @@ Report everything raw — I will synthesize it into this document.
 
 ---
 
-*Created: 2026-05-25 | Last updated: 2026-05-25 (ceiling analysis + ItaliaOggi roadmap added) | Next review: 2026-06-25*  
+*Created: 2026-05-25 | Last updated: 2026-05-25 (4-mode caption system + France implementation + research assessment added) | Next review: 2026-06-25*  
 *Raw images stored at: `/home/jayam/projects/personal/facebook-news-pipeline/pages/`*
