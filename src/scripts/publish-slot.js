@@ -5,7 +5,7 @@ import sharp from 'sharp';
 import FormData from 'form-data';
 import axios from 'axios';
 import { createClient } from '@supabase/supabase-js';
-import { SLOTS, logBoostEligibleWindowStart, postVideoToFacebook } from '../services/facebook.js';
+import { SLOTS, SLOTS_WEEKEND, logBoostEligibleWindowStart, postVideoToFacebook } from '../services/facebook.js';
 import { getPendingArticlesSortedByScore, getFirstBoostIneligiblePostedIT } from '../services/supabase.js';
 import { nearestSlot } from '../utils/publishScore.js';
 import { compositeImage } from '../utils/imageComposite.js';
@@ -38,7 +38,10 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY
 async function run() {
   console.log(`[publish-slot] Starting: ${new Date().toISOString()}`);
 
-  for (const [country, slots] of Object.entries(SLOTS)) {
+  const dayOfWeek = new Date().getDay(); // 0=Sun, 6=Sat
+  const activeSlots = (dayOfWeek === 0 || dayOfWeek === 6) ? SLOTS_WEEKEND : SLOTS;
+
+  for (const [country, slots] of Object.entries(activeSlots)) {
     const { inWindow, closest } = nearestSlot(country, slots);
     if (!inWindow) {
       console.log(`[${country}] Not in slot window (nearest: ${closest})`);

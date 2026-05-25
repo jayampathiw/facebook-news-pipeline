@@ -8,9 +8,16 @@ const FB_BASE = 'https://graph.facebook.com/v22.0';
 export const BOOST_ELIGIBLE_ENFORCED = { IT: true, FR: false };
 
 // Posting time slots per country (local CEST time, ±15 min window)
+// Weekday: 2 slots for IT (top-performing from Meta Insights)
 export const SLOTS = {
   FR: ['07:30', '12:00', '19:00'],
-  IT: ['07:30', '11:30', '15:30', '19:30'],
+  IT: ['07:30', '19:30'],
+};
+
+// Weekend: extra 09:00 slot for ORGOGLIO/PATRIMONIO identity posts when audience is less time-pressured
+export const SLOTS_WEEKEND = {
+  FR: ['07:30', '12:00', '19:00'],
+  IT: ['07:30', '09:00', '19:30'],
 };
 
 // E.1 validation window: tracks when the first IT boost_eligible=false post fires.

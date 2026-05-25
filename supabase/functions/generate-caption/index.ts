@@ -402,7 +402,23 @@ Trigger : histoire française, art, culture, anniversaire, personnalité histori
 Hook : lien passé-présent. "Il y a cent ans..." / "La France qui a donné au monde..."
 Emoji : 🏛️ 🎨 ⚜️ 🥖 🎭 ❤️ (ton nostalgique, chaleureux)
 
-RÈGLE : identity_mode est la lentille pour l'ENSEMBLE du post. Si identity_mode = null, structure 7 blocs standard.`;
+RÈGLE : identity_mode est la lentille pour l'ENSEMBLE du post. Si identity_mode = null, structure 7 blocs standard.
+
+HASHTAGS PAR MODE (override des règles générales Section 2 pour IT et FR) :
+
+IT :
+- ORGOGLIO  → #ItaliaOggi + 1–2 hashtags identité (#OrgoglioItaliano #Italia) — pas de hashtags thématiques
+- RESILIENZA → #ItaliaOggi #Italia + 1–2 hashtags thématiques du sujet
+- DIBATTITO  → #ItaliaOggi #Italia + 1–2 hashtags thématiques (spécificité > identité ici)
+- PATRIMONIO → #ItaliaOggi + 1–2 hashtags patrimoniaux (#PatrimonioItaliano #StoriaItaliana) — pas de hashtags thématiques
+
+FR :
+- FIERTÉ     → #FranceAujourdhui + 1–2 hashtags identité (#FierteFrancaise #France) — pas de hashtags thématiques
+- RÉSISTANCE → #FranceAujourdhui #France + 1–2 hashtags thématiques du sujet
+- DÉBAT      → #FranceAujourdhui #France + 1–2 hashtags thématiques du sujet
+- PATRIMOINE → #FranceAujourdhui + 1–2 hashtags patrimoniaux (#PatrimoineFrancais #HistoireDeFrance) — pas de hashtags thématiques
+
+Maximum 5 hashtags dans tous les cas. Le hashtag fixe de la page (fourni dans le message utilisateur) est toujours inclus.`;
 
 const SEED_COMMENT_TEMPLATES: Record<string, { id: string; t: string }[]> = {
   FR: [
