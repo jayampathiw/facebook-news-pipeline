@@ -42,14 +42,37 @@ src/
 ├── utils/dedup.js                   ← title similarity deduplication
 ├── utils/criticality.js             ← keyword-based criticality scorer
 ├── validators/contentValidator.js   ← multi-language content policy
+├── renderers/
+│   ├── reel.js                      ← single-scene news reel renderer (TTS → image → FFmpeg)
+│   ├── documentary.js               ← multi-scene documentary renderer (6 scenes, concat)
+│   └── tts.py                       ← Kokoro TTS wrapper (called by both renderers)
 ├── scripts/
 │   ├── generate-caption.js          ← CLI: generate all fields for 1+ article IDs
+│   ├── generate-documentary.js      ← CLI: render Italy documentary video
 │   ├── generate-image.js            ← image-only regeneration for 1+ IDs
+│   ├── generate-reel.js             ← CLI: render news reel for 1+ article IDs
 │   ├── preview-images.js            ← generate + save composited images locally (no posting)
+│   ├── preview-reel.js              ← preview reel without posting
 │   ├── publish-slot.js              ← post highest-scored pending article at slot time (cron parked)
 │   ├── recompute-scores.js          ← recompute publish_score for all articles
 │   └── save-article-content.js      ← DB writer (used by Claude Code skills)
 └── pipeline.js                      ← main orchestrator
+
+assets/
+└── music/
+    ├── breaking.mp3                 ← news reel music (breaking criticality)
+    ├── positive.mp3                 ← news reel music (positive)
+    ├── standard.mp3                 ← news reel music (standard/trending)
+    └── documentary_cinematic.mp3    ← Kevin MacLeod "Strength of the Titans" CC BY (documentary)
+
+output/
+├── previews/                        ← composited preview images (preview-images.js)
+├── reels/                           ← rendered news reel MP4s
+└── documentaries/                   ← rendered documentary MP4s
+
+docs/
+├── documentary-video-concept.md     ← concept notes, script decisions, France outline
+└── video-reel-pipeline.md
 
 dashboard/                           ← Angular app (deployed to Vercel)
 supabase/
@@ -89,6 +112,14 @@ node src/scripts/publish-slot.js
 
 # Recompute publish_score for all articles
 node src/scripts/recompute-scores.js
+
+# Render Italy documentary video (~2 min, reuses cached TTS/images on retry)
+node src/scripts/generate-documentary.js
+# → output/documentaries/l-italia-che-ha-conquistato-il-mondo.mp4
+
+# Render a news reel for specific articles
+node src/scripts/generate-reel.js <id1> <id2> ...
+# → output/reels/<id>.mp4
 
 # Or use Claude Code skills (see below)
 ```
@@ -140,6 +171,62 @@ For the Supabase edge function, `ANTHROPIC_KEY` is stored as a Supabase secret (
 - Batch operations: select multiple rows → batch Generate, Post, Mark Posted, Delete.
 
 **Deploy:** `cd dashboard && vercel --prod`
+
+---
+
+## Documentary Video Pipeline
+
+Standalone national-pride documentary reels for Facebook, separate from the news article pipeline. These are ~2-minute emotional montage videos following the formula: *achievements + proud narration + cinematic music + "Follow if you love [country]" CTA.*
+
+**Reference:** Géomythe-style France reel — culture, luxury, history, sports in one emotional package.
+
+**Why:** Two posts using "SE AMI L'ITALIA / SI VOUS AIMEZ LA FRANCE" drove outsized engagement (152+ likes, deep emotional comments). The documentary format is designed to replicate that emotion at scale.
+
+### Current videos
+
+| Video | Status | File |
+|---|---|---|
+| Italy — *"L'Italia che ha conquistato il mondo"* | ✅ Rendered | `output/documentaries/l-italia-che-ha-conquistato-il-mondo.mp4` |
+| France — *"La France qui a changé le monde"* | Planned (after Italy result) | — |
+
+### How it works (`src/renderers/documentary.js`)
+
+1. **TTS** — each scene's narration rendered via Kokoro `if_sara` (IT) or `ff_siwis` (FR) at 0.85× speed for emotional delivery. WAVs cached — re-runs skip existing files.
+2. **Audio concat** — all scene WAVs joined into a single `voice.wav`.
+3. **Whisper subtitles** — tiny model, word-level timestamps, burned in via FFmpeg `subtitles=` filter.
+4. **Images** — one AI-generated image per scene (Cloudflare Flux by default, Pollinations as free fallback). PNGs cached — re-runs skip existing.
+5. **FFmpeg compose** — hard-cut concat of 6 scene clips → subtitles → watermark → CTA overlay → music mix.
+6. **Music** — `documentary_cinematic.mp3` (Kevin MacLeod "Strength of the Titans", CC BY 4.0) looped via `-stream_loop -1`, fades out in last 3s.
+7. **CTA** — two-line Anton font overlay (`SE AMI L'ITALIA` / `Segui Vivere in Italia`) appears when voice ends, stays for 3s tail.
+
+### Italy script structure (6 scenes, ~1:55 total)
+
+| # | Theme | Duration |
+|---|---|---|
+| 1 | Opening hook — Italy's global mark | ~16s |
+| 2 | Art & Renaissance — da Vinci, Michelangelo, Galileo | ~19s |
+| 3 | Fashion & Design — Armani, Gucci, Ferrari | ~20s |
+| 4 | Food — pizza, pasta, espresso, gelato | ~20s |
+| 5 | Sports — Azzurri, Scuderia Ferrari, Valentino Rossi | ~19s |
+| 6 | Closing — "Non è solo un paese. È una civiltà." | ~18s |
+
+### Re-running / retrying
+
+The renderer caches all intermediate files in `/tmp/documentary/<slug>/`. If FFmpeg fails, fix the issue and re-run — TTS and images are skipped automatically. To force a full regeneration, delete the `/tmp/documentary/` directory.
+
+```bash
+# Force full regeneration
+rm -rf /tmp/documentary/
+node src/scripts/generate-documentary.js
+```
+
+### Adding a new documentary (e.g. France)
+
+1. Copy the `DOCUMENTARY_IT` object in `generate-documentary.js` and create `generate-documentary-fr.js`.
+2. Set `country: 'FR'` — the renderer automatically uses `ff_siwis` voice and `FranceAujourdhui_Logo.png`.
+3. Write 6 scenes with narration (French) and imagePrompt (English, for AI generation).
+4. Set `cta.line1` to `"SI VOUS AIMEZ LA FRANCE"` and `cta.line2` to `"Suivez France Aujourd'hui"`.
+5. The France outline is pre-planned in `docs/documentary-video-concept.md`.
 
 ---
 
