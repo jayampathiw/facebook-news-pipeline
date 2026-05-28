@@ -815,7 +815,6 @@ Adjust mode selection logic or question phrasing based on what the data shows.
 
 ### Decisions pending ⏳
 - [ ] **Identity post mix ratio** — What % of ItaliaOggi posts should be pride/identity vs. news? (Suggested starting point: 70% news, 30% identity)
-- [ ] **Identity post mix ratio** — What % of ItaliaOggi posts should be pride/identity vs. news? (Suggested starting point: 70% news, 30% identity)
 - [ ] **English diaspora content** — Should ItaliaOggi publish some posts in English to reach the 30M Italian diaspora?
 - [ ] **Square format adoption** — Adopt 1:1 for identity posts alongside current 9:16 news images?
 - [ ] **Text-overlay posts** — Build "quote on photo" format into the pipeline or keep manual?
@@ -835,14 +834,22 @@ Adjust mode selection logic or question phrasing based on what the data shows.
 - [ ] Whether the two page IDs (61580290446363 and 710233802183967) are the same admin or separate entities
 
 ### To build (technical) 🔨
-- [ ] **Phase 1 — Fix French CTA bug** — audit `generateCaption()` in `src/services/claude.js` and edge function; add explicit language enforcement to CTA instruction; deploy edge function
-- [ ] **Phase 2 — 4-mode identity caption system** — update `generateCaption()` prompt in `src/services/claude.js` and `supabase/functions/generate-caption/index.ts` with mode selection (ORGOGLIO/RESILIENZA/DIBATTITO/PATRIMONIO for IT; FIERTÉ/RÉSISTANCE/DÉBAT/PATRIMOINE for FR), emotion triggers, emoji system, upgraded DEBATE question, guardrails; deploy edge function
-- [ ] **Phase 2 smoke test** — 5 articles (one per mode + one judicial/negative), verify mode choice, identity lens, question, CTA language, emoji count
-- [ ] Image prompt variant: "AI crowd at iconic Italian location + flag" in 1:1 square style
-- [ ] Caption template for manual identity posts in the pipeline
-- [ ] Content calendar: 70% news + 30% identity post schedule
-- [ ] Post scheduling aligned to 18:30 / 20:00 / 21:15 CET windows
+- [x] **Phase 1 — Fix French CTA bug** — `ctaInstruction` map keyed by `captionLanguage` in both `src/services/claude.js` and edge function; deployed 2026-05-25
+- [x] **Phase 2 — 4-mode identity caption system** — ORGOGLIO/RESILIENZA/DIBATTITO/PATRIMONIO (IT) + FIERTÉ/RÉSISTANCE/DÉBAT/PATRIMOINE (FR) with ÉTAPE 0 classification, emotion triggers, emoji system, guardrails; deployed to both files 2026-05-25
+- [x] **Phase 2 smoke test** — tested on 5 IT articles; railway disruption → RESILIENZA confirmed correct; wedding article → RESILIENZA misclassification noted (guardrail refinement: "celebrazioni personali e familiari → null" pending)
+- [x] **Approach F image variant** — anonymous crowd at iconic national landmark + flag, warm tricolore filter, 1:1 square — added to `generateImagePrompt()` in `src/services/claude.js`; triggers on ORGOGLIO/PATRIMONIO/FIERTÉ/PATRIMOINE
+- [x] **Phase 5 — Post timing** — IT slots reduced to `['07:30', '19:30']`; `SLOTS_WEEKEND` added with `['07:30', '09:00', '19:30']`; `publish-slot.js` now uses day-of-week detection
+- [x] **Phase 6 — Manual identity posts** — `src/scripts/post-identity.js` created; posts video or image directly to Facebook without DB article; default IT/FR captions built-in
+- [x] **Phase 3 / post-article** — `src/scripts/post-article.js` created; posts specific article by ID bypassing slot window; supports Cloudflare/Google/Pollinations image providers
+- [ ] **identity_mode guardrail refinement** — add "celebrazioni personali e familiari → null" to prevent RESILIENZA misclassification on heartwarming family stories
+- [ ] Content calendar implementation: 70% news + 30% identity post schedule
 - [ ] 2027 Festa della Repubblica content ramp (build May 20 2027 reminder)
+
+### Calibration period (live — started 2026-05-25)
+- [ ] Monitor mode distribution across first 3 weeks of production posts
+- [ ] Check ORGOGLIO vs DIBATTITO engagement delta in Meta Insights (~2026-06-15)
+- [ ] Test 3–4 FR articles to verify FIERTÉ/DÉBAT/RÉSISTANCE modes and CTA language fix
+- [ ] Consider RESILIENZA guardrail update after seeing more edge cases
 
 ---
 
@@ -915,5 +922,5 @@ Report everything raw — I will synthesize it into this document.
 
 ---
 
-*Created: 2026-05-25 | Last updated: 2026-05-25 (Meta Insights analysis + 2-phase implementation plan added) | Next review: 2026-06-25*  
+*Created: 2026-05-25 | Last updated: 2026-05-25 (all 7 implementation phases complete — 4-mode system deployed, timing adjusted, scripts created) | Next review: 2026-06-15 (mode performance check)*  
 *Raw images stored at: `/home/jayam/projects/personal/facebook-news-pipeline/pages/`*

@@ -391,10 +391,13 @@ function pickEligibleTemplates(country, recentIds) {
   return eligible.length > 0 ? eligible : pool;
 }
 
-export async function generateCaption(article, captionLanguage, pageName, pageHashtag, recentSeedTemplateIds = []) {
+export async function generateCaption(article, captionLanguage, pageName, pageHashtag, recentSeedTemplateIds = [], options = {}) {
   const client = getClient();
   // Cap summary at 1500 chars — very long articles caused JSON truncation at 1200 output tokens.
   const summary = (article.summary || 'Non disponible').slice(0, 1500);
+
+  const forcedMode = options.forcedMode || null;
+  const isHistorical = options.historical === true;
 
   const isIdentityLang = captionLanguage === 'italiano' || captionLanguage === 'français';
   const ctaInstruction = {
@@ -409,17 +412,45 @@ export async function generateCaption(article, captionLanguage, pageName, pageHa
   const identityModeList = captionLanguage === 'italiano'
     ? 'ORGOGLIO|RESILIENZA|DIBATTITO|PATRIMONIO'
     : 'FIERTÉ|RÉSISTANCE|DÉBAT|PATRIMOINE';
-  const modeStep = isIdentityLang
-    ? `\nÉTAPE 0 — MODE IDENTITAIRE (choisir avant de rédiger, voir Section 6) :\n${identityModeChoices}\nSi aucun mode ne s'applique (fait divers neutre, international pur, judiciaire) : identity_mode = null.\nLe mode est la lentille éditoriale pour l'ENSEMBLE du post — pas un ajout en fin de texte.\n`
-    : '';
-  const hookInstruction = isIdentityLang
-    ? "si mode identitaire actif : cadrer en termes d'identité nationale (Section 6) ; sinon : tension/conflit central avec acteur nommé"
-    : 'tension/conflit central avec acteur nommé si possible';
+  const modeStep = (() => {
+    if (!isIdentityLang) return '';
+    if (forcedMode) {
+      return `\nÉTAPE 0 — MODE IDENTITAIRE IMPOSÉ : ${forcedMode}\nNe pas reclassifier. Écrire l'ENSEMBLE du post à travers la lentille de ce mode — voir Section 6.\nLe champ identity_mode du JSON doit valoir "${forcedMode}".\n`;
+    }
+    return `\nÉTAPE 0 — MODE IDENTITAIRE (choisir avant de rédiger, voir Section 6) :\n${identityModeChoices}\nSi aucun mode ne s'applique (fait divers neutre, international pur, judiciaire) : identity_mode = null.\nLe mode est la lentille éditoriale pour l'ENSEMBLE du post — pas un ajout en fin de texte.\n`;
+  })();
+  const hookInstruction = isHistorical
+    ? (captionLanguage === 'italiano'
+        ? 'apertura celebrativa — data + luogo + momento iconico. Esempio : « Berlino, 9 luglio 2006 — la notte che gli italiani non dimenticheranno mai. » MAI tensione o conflitto.'
+        : 'ouverture célébratoire — date + lieu + moment iconique. Exemple : « Stade de France, 12 juillet 1998 — la nuit où la France est devenue championne du monde. » JAMAIS tension ou conflit.')
+    : isIdentityLang
+      ? "si mode identitaire actif : cadrer en termes d'identité nationale (Section 6) ; sinon : tension/conflit central avec acteur nommé"
+      : 'tension/conflit central avec acteur nommé si possible';
   const questionGuide = captionLanguage === 'italiano'
     ? `ORGOGLIO → "Di cosa sei più orgoglioso/a dell'Italia ?" ; RESILIENZA → "Come stai affrontando questo ?" ; DIBATTITO → "Cosa dice questo dell'Italia che vogliamo ?" ; PATRIMONIO → "Cosa trasmetti di italiano ai tuoi figli ?" ; null → domanda chiusa o binaria`
     : captionLanguage === 'français'
     ? `FIERTÉ → "Qu'est-ce qui vous rend le plus fier(ère) d'être français(e) ?" ; RÉSISTANCE → "Comment vous en sortez-vous ?" ; DÉBAT → "Qu'est-ce que cela dit de la France que nous voulons ?" ; PATRIMOINE → "Quel est votre patrimoine français préféré ?" ; null → fermée ou binaire`
     : 'fermée ou binaire (pas ouverte seule)';
+  const peopleNoun = captionLanguage === 'italiano' ? 'gli italiani' : 'les Français';
+  const structureBlock = isHistorical
+    ? `Structure du post (dans l'ordre, sans labels visibles dans le texte) :
+1. Hook — ${hookInstruction}
+2. Contexte historique — 2-3 phrases qui plantent le décor (date, lieu, protagonistes)
+3. Détails — 3-5 bullets commençant par • : faits marquants, chiffres, noms emblématiques
+4. Héritage — 1 phrase sur ce que ce moment représente aujourd'hui pour ${peopleNoun}
+5. Question d'engagement — ${questionGuide}
+6. Source : 📰 Source(s) : ${article.source}
+7. CTA : 👉 ${ctaInstruction}
+8. Hashtags (max 5, inline à la fin)`
+    : `Structure du post (dans l'ordre, sans labels visibles dans le texte) :
+1. Hook — ${hookInstruction}
+2. Contexte — 2-3 phrases neutres (qui, quoi, où, quand)
+3. Détails — 3-5 bullets commençant par •
+4. Enjeux — 1 phrase sur l'impact concret pour le lecteur
+5. Question d'engagement — ${questionGuide}
+6. Source : 📰 Source(s) : ${article.source}
+7. CTA : 👉 ${ctaInstruction}
+8. Hashtags (max 5, inline à la fin)`;
   const jsonSchema = `{"intro":"[blocs 1-4]","question":"[bloc 5]","cta":"[blocs 6-7 + hashtags]","hashtags":["#Tag1","#Tag2","#Tag3"],"seed_comment":"[template rempli]","seed_comment_template_id":"[id du template]","story_category":"[Politique|Société|Sport|Culture|International|Santé|Environnement]","recommended_format":"[image|video|poll|carousel]","content_signals":{"binary_frame":true,"poll_fit_score":3,"protagonist_named":"Dupont","best_format":"post","fr_it_stake_first_sentence":true,"pillar_hint":"france-en-debat"}${isIdentityLang ? `,"identity_mode":"[${identityModeList}|null]"` : ''}}`;
 
   const raw = await client.messages.create({
@@ -432,16 +463,8 @@ export async function generateCaption(article, captionLanguage, pageName, pageHa
 ${modeStep}
 Rédige un post Facebook complet pour ${pageName} en ${captionLanguage}.
 Hashtag fixe de la page : ${pageHashtag || '#' + pageName.replace(/\s+/g, '')}
-${article.boost_eligible === false ? `\nNote : boost_eligible=false — adapter le registre selon les règles Section 4 ${article.country}.` : ''}
-Structure du post (dans l'ordre, sans labels visibles dans le texte) :
-1. Hook — ${hookInstruction}
-2. Contexte — 2-3 phrases neutres (qui, quoi, où, quand)
-3. Détails — 3-5 bullets commençant par •
-4. Enjeux — 1 phrase sur l'impact concret pour le lecteur
-5. Question d'engagement — ${questionGuide}
-6. Source : 📰 Source(s) : ${article.source}
-7. CTA : 👉 ${ctaInstruction}
-8. Hashtags (max 5, inline à la fin)
+${article.boost_eligible === false ? `\nNote : boost_eligible=false — adapter le registre selon les règles Section 4 ${article.country}.` : ''}${isHistorical ? `\nNote : ce post est une histoire patrimoniale/évergreen, pas une actualité. Registre célébratoire, fier, chaleureux. Aucune tension politique.` : ''}
+${structureBlock}
 
 JSON attendu :
 ${jsonSchema}
@@ -478,6 +501,36 @@ Résumé : ${summary}`,
   }
 }
 
+// Defensive post-processors — Claude sometimes hits the char budget by
+// truncating mid-word rather than rewriting. Both run after every SEO call
+// so the saved values are always clean.
+export function sanitizeSeoTitle(title) {
+  if (!title) return title;
+  const s = title.trim();
+  if (s.length <= 60) return s;
+  const candidate = s.slice(0, 58);
+  const lastSpace = candidate.lastIndexOf(' ');
+  return lastSpace > 30 ? candidate.slice(0, lastSpace).trim() : candidate;
+}
+
+export function sanitizeSeoDescription(desc) {
+  if (!desc) return desc;
+  const s = desc.trim();
+  if (s.length <= 160 && /[.!?"»)]$/.test(s)) return s;
+  const candidate = s.slice(0, 158);
+  const lastTerm = Math.max(
+    candidate.lastIndexOf('.'),
+    candidate.lastIndexOf('!'),
+    candidate.lastIndexOf('?'),
+  );
+  if (lastTerm > 50) return candidate.slice(0, lastTerm + 1);
+  const lastSpace = candidate.lastIndexOf(' ');
+  if (lastSpace > 50) {
+    return candidate.slice(0, lastSpace).trim().replace(/[,;:—–-]+$/, '') + '.';
+  }
+  return candidate.replace(/[,;:—–-]+$/, '') + '.';
+}
+
 export async function generateSEOContent(article, captionLanguage) {
   const client = getClient();
   const summary = (article.summary || 'Non disponible').slice(0, 1500);
@@ -489,7 +542,12 @@ export async function generateSEOContent(article, captionLanguage) {
     messages: [{
       role: 'user',
       content: `Génère un seo_title et une seo_description pour cet article.
-RAPPEL CRITIQUE : seo_title ≤ 60 caractères (compter avant de répondre). seo_description ≤ 160 caractères (compter avant de répondre). Si l'un dépasse la limite, réécrire entièrement — ne jamais tronquer.
+
+RAPPEL CRITIQUE — appliquer dans cet ordre :
+1. seo_title ≤ 60 caractères (compter avant de répondre). Se termine sur un mot entier.
+2. seo_description ≤ 155 caractères (marge de sécurité de 5 caractères). DOIT se terminer par . ! ou ? — jamais en plein mot, jamais sur une virgule ou un tiret.
+3. Si la première rédaction dépasse 155 caractères OU se termine mal : RÉÉCRIRE entièrement avec moins de mots, plus court, plus dense. Ne jamais tronquer.
+4. Compter mentalement les caractères avant de soumettre le JSON.
 
 Langue de rédaction: ${captionLanguage}
 
@@ -501,16 +559,21 @@ Résumé: ${summary}`,
   });
   const response = parseResponse(raw);
 
+  let parsed;
   try {
     const text = response.content[0].text.trim();
     const jsonMatch = text.match(/\{[\s\S]*\}/);
-    return JSON.parse(jsonMatch ? jsonMatch[0] : text);
+    parsed = JSON.parse(jsonMatch ? jsonMatch[0] : text);
   } catch {
-    return {
+    parsed = {
       seo_title: article.title.slice(0, 60),
       seo_description: (article.summary || '').slice(0, 160),
     };
   }
+  return {
+    seo_title: sanitizeSeoTitle(parsed.seo_title),
+    seo_description: sanitizeSeoDescription(parsed.seo_description),
+  };
 }
 
 const ENGLISH_STOPWORDS = /\b(the|and|of|for|has|have|will|with|this|that|are|was|were|been|being)\b/i;
@@ -568,11 +631,14 @@ F · IDENTITY / PRIDE / HERITAGE — Article is about national achievement, cult
    → ONLY for clearly celebratory or heritage content. For news, politics, crime, health — use A–E instead.
 
 STEP 2 · Write the image_prompt:
-- Write in ${captionLanguage || "the article's language"}. Begin: "Photographie cinématographique ultra-réaliste, style photojournalisme hyper-détaillé," (or Italian equivalent).
-- Camera locked: Sony A7R V, objectif 35mm, ouverture f/2.8, ISO 200.
-- Specify cinematic colour grading: warm/cool/neutral tones + contrast level + time of day.
+- Write in ${captionLanguage || "the article's language"}.
+- MANDATORY OPENING (exact words, then continue): "RAW photograph, shot on Sony A7R V, 35mm f/2.8, ISO 200, photojournalistic documentary style, hyper-realistic, 8K resolution —"
+- STYLE: real press photography. NOT illustration. NOT painting. NOT cartoon. NOT CGI. NOT digital art. NOT 3D render. NOT watercolor. NOT concept art.
+- Add explicit negative style anchor at the end of the prompt: "—style: documentary photojournalism, grain visible, natural imperfections, absolutely NOT illustration or artistic rendering"
+- Lighting: specify exact natural/practical light source and colour temperature (golden hour 3200K / overcast 6500K / fluorescent 4100K / midday 5500K etc.)
+- Colour grading: one specific palette (desaturated cool blues / warm amber tones / high-contrast monochrome tint / etc.) + contrast level.
 - NO readable text, NO logos, NO legible inscriptions on flags or signs.
-- Minimum 80 words. Every detail must be specific to THIS article — chaque article produit une composition visuellement unique.
+- Minimum 80 words. Every detail must be specific to THIS article — each article produces a visually unique composition.
 
 Article title: ${article.title}
 Summary: ${summary}`,

@@ -454,6 +454,35 @@ function pickEligibleTemplates(country: string, recentIds: string[]): { id: stri
   return eligible.length > 0 ? eligible : pool;
 }
 
+// Defensive post-processors — Claude sometimes hits the char budget by
+// truncating mid-word rather than rewriting. Run after every SEO call.
+function sanitizeSeoTitle(title: string | undefined | null): string {
+  if (!title) return title ?? '';
+  const s = title.trim();
+  if (s.length <= 60) return s;
+  const candidate = s.slice(0, 58);
+  const lastSpace = candidate.lastIndexOf(' ');
+  return lastSpace > 30 ? candidate.slice(0, lastSpace).trim() : candidate;
+}
+
+function sanitizeSeoDescription(desc: string | undefined | null): string {
+  if (!desc) return desc ?? '';
+  const s = desc.trim();
+  if (s.length <= 160 && /[.!?"»)]$/.test(s)) return s;
+  const candidate = s.slice(0, 158);
+  const lastTerm = Math.max(
+    candidate.lastIndexOf('.'),
+    candidate.lastIndexOf('!'),
+    candidate.lastIndexOf('?'),
+  );
+  if (lastTerm > 50) return candidate.slice(0, lastTerm + 1);
+  const lastSpace = candidate.lastIndexOf(' ');
+  if (lastSpace > 50) {
+    return candidate.slice(0, lastSpace).trim().replace(/[,;:—–-]+$/, '') + '.';
+  }
+  return candidate.replace(/[,;:—–-]+$/, '') + '.';
+}
+
 const LIGHTING_PATTERNS = [
   /golden hour/i, /fluorescent lighting/i, /fire glow/i, /morning light/i,
   /studio lights?/i, /overhead lighting/i, /stormy (?:sky|lighting)/i,
@@ -557,7 +586,12 @@ Résumé : ${summary}`,
       messages: [{
         role: 'user',
         content: `Génère un seo_title et une seo_description pour cet article.
-RAPPEL CRITIQUE : seo_title ≤ 60 caractères (compter avant de répondre). seo_description ≤ 160 caractères (compter avant de répondre). Si l'un dépasse la limite, réécrire entièrement — ne jamais tronquer.
+
+RAPPEL CRITIQUE — appliquer dans cet ordre :
+1. seo_title ≤ 60 caractères (compter avant de répondre). Se termine sur un mot entier.
+2. seo_description ≤ 155 caractères (marge de sécurité de 5 caractères). DOIT se terminer par . ! ou ? — jamais en plein mot, jamais sur une virgule ou un tiret.
+3. Si la première rédaction dépasse 155 caractères OU se termine mal : RÉÉCRIRE entièrement avec moins de mots, plus court, plus dense. Ne jamais tronquer.
+4. Compter mentalement les caractères avant de soumettre le JSON.
 
 Langue de rédaction: ${captionLanguage}
 
@@ -609,11 +643,14 @@ F · IDENTITY / PRIDE / HERITAGE — Article is about national achievement, cult
    → ONLY for clearly celebratory or heritage content. For news, politics, crime, health — use A–E instead.
 
 STEP 2 · Write the image_prompt:
-- Write in ${captionLanguage}. Begin: "Photographie cinématographique ultra-réaliste, style photojournalisme hyper-détaillé," (or Italian equivalent for IT articles).
-- Camera locked: Sony A7R V, objectif 35mm, ouverture f/2.8, ISO 200.
-- Specify cinematic colour grading: warm/cool/neutral tones + contrast level + time of day.
+- Write in ${captionLanguage}.
+- MANDATORY OPENING (exact words, then continue): "RAW photograph, shot on Sony A7R V, 35mm f/2.8, ISO 200, photojournalistic documentary style, hyper-realistic, 8K resolution —"
+- STYLE: real press photography. NOT illustration. NOT painting. NOT cartoon. NOT CGI. NOT digital art. NOT 3D render. NOT watercolor. NOT concept art.
+- Add explicit negative style anchor at the end of the prompt: "—style: documentary photojournalism, grain visible, natural imperfections, absolutely NOT illustration or artistic rendering"
+- Lighting: specify exact natural/practical light source and colour temperature (golden hour 3200K / overcast 6500K / fluorescent 4100K / midday 5500K etc.)
+- Colour grading: one specific palette (desaturated cool blues / warm amber tones / high-contrast monochrome tint / etc.) + contrast level.
 - NO readable text, NO logos, NO legible inscriptions on flags or signs.
-- Minimum 80 words. Every detail must be specific to THIS article — chaque article produit une composition visuellement unique.
+- Minimum 80 words. Every detail must be specific to THIS article — each article produces a visually unique composition.
 
 Article: ${article.title}
 Summary: ${summary}`,
@@ -642,10 +679,14 @@ Summary: ${summary}`,
     story_category: 'Société',
   });
   if (!captionData.intro) captionData.intro = captionRawText;
-  const seo = parseJSON(getText(seoRes) || '', {
+  const seoRaw = parseJSON(getText(seoRes) || '', {
     seo_title: article.title.slice(0, 60),
     seo_description: (article.summary || '').slice(0, 160),
   });
+  const seo = {
+    seo_title: sanitizeSeoTitle(seoRaw.seo_title),
+    seo_description: sanitizeSeoDescription(seoRaw.seo_description),
+  };
   const imageData = parseJSON(getText(imageRes) || '', {
     image_prompt: '',
     image_headline: '',
