@@ -6,6 +6,23 @@
 **Methodology:** External research consensus from 3 AI tools + Meta Insights CSV analysis
 **Status:** Recommendations drafted; awaiting deployment + A/B tests
 
+## ⏰ Time Zone Reference (read this first)
+
+**Every time in this document is local Europe/Paris time (CET / CEST)** — same zone as Rome.
+- Winter (late Oct – late Mar): **CET = UTC+1**
+- Summer (late Mar – late Oct): **CEST = UTC+2**
+
+For other locations:
+
+| Time zone | Offset from CEST (summer) | "22:00 CEST" becomes… |
+|---|---|---|
+| UTC | −2h | 20:00 UTC |
+| Sri Lanka (IST) | +3.5h | **01:30 IST next day** |
+| US Eastern (EDT) | −6h | 16:00 EDT |
+| Australia Eastern (AEST) | +8h | 06:00 AEST next day |
+
+The `publish-slot.js` cron resolves slot times in `Europe/Paris` via `toLocaleString({ timeZone: 'Europe/Paris' })`, so the server timezone is irrelevant — slots always fire at the right Italian/French local moment.
+
 ---
 
 ## 1. Executive Summary

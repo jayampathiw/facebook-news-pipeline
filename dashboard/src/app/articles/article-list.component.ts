@@ -288,6 +288,7 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
                         <span style="color:var(--ink-text-3);">·</span>
                         <span>{{ countryFlag(article.country) }} {{ article.country }}</span>
                         <span class="hidden sm:inline" style="color:var(--ink-text-3);">·</span>
+                        <span [class]="'ink-badge ' + criticalityBadgeClass(article.criticality)" style="font-size:9px;text-transform:uppercase;letter-spacing:.05em;" [title]="'Criticality: ' + article.criticality">{{ criticalityLabel(article.criticality) }}</span>
                         <span [class]="'hidden sm:inline ink-badge ' + statusBadgeClass(article.status)">{{ article.status }}</span>
                         @if (article.status === 'pending' && articleBestSlot(article)) {
                           <span [class]="'ink-badge ' + intentBadgeClass(articleSlotIntent(article))" style="font-size:9px;" [title]="'Best slot for this article based on identity mode + criticality'">{{ articleSlotLabel(article) }}</span>
@@ -716,6 +717,14 @@ export class ArticleListComponent implements OnInit, OnDestroy {
 
   critColor(level: string): string {
     return ({ breaking: '#ff3636', alert: '#ff8c00', trending: '#1e7aff', standard: '#00cc70' } as any)[level] ?? '#1a2440';
+  }
+
+  criticalityBadgeClass(level: string): string {
+    return ({ breaking: 'ib-breaking', alert: 'ib-alert', trending: 'ib-trending', standard: 'ib-standard' } as any)[level] ?? '';
+  }
+
+  criticalityLabel(level: string): string {
+    return ({ breaking: '🔴 Breaking', alert: '🟠 Alert', trending: '🔵 Trending', standard: '🟢 Standard' } as any)[level] ?? level;
   }
 
   statusBadgeClass(status: string): string {
