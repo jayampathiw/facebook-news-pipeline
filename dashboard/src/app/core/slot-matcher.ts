@@ -1,0 +1,129 @@
+import { Article } from './supabase.service';
+
+// Per-day slot configuration — mirrors src/services/facebook.js SLOTS_BY_DAY.
+// Keep in sync; rationale documented in docs/research/posting-time-analysis.md.
+export const SLOTS_BY_DAY: Record<string, Record<string, string[]>> = {
+  IT: {
+    monday:    ['07:30', '13:00', '22:00'],
+    tuesday:   ['07:30', '13:00', '22:00'],
+    wednesday: ['07:30', '13:00', '22:00'],
+    thursday:  ['07:30', '13:00', '22:00'],
+    friday:    ['07:30', '13:00', '22:00'],
+    saturday:  ['09:00',          '22:00'],
+    sunday:    ['11:00', '13:00', '22:00'],
+  },
+  FR: {
+    monday:    ['07:30',          '22:00'],
+    tuesday:   ['07:30', '13:00', '22:00'],
+    wednesday: ['07:30', '13:00', '22:00'],
+    thursday:  ['07:30', '13:00', '22:00'],
+    friday:    ['07:30',          '22:00'],
+    saturday:  ['09:00',          '22:00'],
+    sunday:    ['09:30',          '22:00'],
+  },
+};
+
+const DAY_NAMES = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+
+export function getSlotsForDate(country: string, date: Date = new Date()): string[] {
+  // Use Europe/Paris timezone for day-of-week — both pages publish in CET/CEST.
+  const parisDate = new Date(date.toLocaleString('en-US', { timeZone: 'Europe/Paris' }));
+  const dayName = DAY_NAMES[parisDate.getDay()];
+  return SLOTS_BY_DAY[country]?.[dayName] ?? [];
+}
+
+export type SlotIntent = 'morning' | 'midday' | 'evening';
+
+// Maps a slot time to its editorial intent. Used to match articles to slots
+// by content character (not just publish_score).
+export function slotIntent(slot: string): SlotIntent {
+  const [h] = slot.split(':').map(Number);
+  if (h < 11) return 'morning';
+  if (h < 17) return 'midday';
+  return 'evening';
+}
+
+export function slotIntentLabel(intent: SlotIntent, lang: 'en' | 'it' | 'fr' = 'en'): string {
+  const labels = {
+    en: { morning: 'morning', midday: 'midday', evening: 'evening' },
+    it: { morning: 'mattina', midday: 'pranzo',  evening: 'sera' },
+    fr: { morning: 'matin',   midday: 'midi',    evening: 'soir' },
+  };
+  return labels[lang][intent];
+}
+
+// Maps an identity_mode to the slot intent it fits best.
+// Built from the 4-mode caption system + data-driven late-evening preference:
+//   - RESILIENZA / RÉSISTANCE — solidarity / crisis content → morning urgency
+//   - DIBATTITO / DÉBAT — political debate → midday news cycle
+//   - ORGOGLIO / FIERTÉ — pride / wins → evening warm scroll
+//   - PATRIMONIO / PATRIMOINE — heritage / culture → evening warm scroll
+const MODE_TO_INTENT: Record<string, SlotIntent> = {
+  RESILIENZA:  'morning',
+  'RÉSISTANCE': 'morning',
+  DIBATTITO:   'midday',
+  'DÉBAT':     'midday',
+  ORGOGLIO:    'evening',
+  'FIERTÉ':    'evening',
+  PATRIMONIO:  'evening',
+  PATRIMOINE:  'evening',
+};
+
+// Computes the best slot intent for an article based on (in priority order):
+//   1. source_type === 'historical' → always evening (heritage content)
+//   2. criticality === 'breaking' → morning (urgency)
+//   3. identity_mode → mapped intent
+//   4. fallback: midday (safe default)
+export function bestSlotIntent(article: Article): SlotIntent {
+  if (article.source_type === 'historical') return 'evening';
+  if (article.criticality === 'breaking') return 'morning';
+  const mode = article.content_signals?.identity_mode;
+  if (mode && MODE_TO_INTENT[mode]) return MODE_TO_INTENT[mode];
+  return 'midday';
+}
+
+// Finds the actual slot time today/tomorrow that matches the article's best intent.
+// Returns the slot string (e.g. "22:00") or null if no matching slot exists today.
+export function bestSlotForArticle(article: Article, date: Date = new Date()): string | null {
+  const slots = getSlotsForDate(article.country, date);
+  if (slots.length === 0) return null;
+  const intent = bestSlotIntent(article);
+  const matching = slots.find(s => slotIntent(s) === intent);
+  return matching ?? slots[slots.length - 1]; // fallback: last slot of the day
+}
+
+// For the Today's Plan panel: returns one article (or null) for each slot today,
+// picking by best-intent-match first, then highest publish_score among matches.
+// Articles already matched to an earlier slot are excluded so we don't double-book.
+export interface SlotAssignment {
+  slot: string;
+  intent: SlotIntent;
+  article: Article | null;
+}
+
+export function assignArticlesToTodaySlots(
+  country: string,
+  pendingArticles: Article[],
+  date: Date = new Date(),
+): SlotAssignment[] {
+  const slots = getSlotsForDate(country, date);
+  const eligible = pendingArticles
+    .filter(a => a.country === country && a.status === 'pending' && a.ai_caption?.intro);
+  const used = new Set<string>();
+  return slots.map(slot => {
+    const intent = slotIntent(slot);
+    const matches = eligible
+      .filter(a => !used.has(a.id) && bestSlotIntent(a) === intent)
+      .sort((a, b) => (b.publish_score ?? 0) - (a.publish_score ?? 0));
+    let pick = matches[0];
+    if (!pick) {
+      // No intent-matched article — fall back to highest score among unused
+      const fallback = eligible
+        .filter(a => !used.has(a.id))
+        .sort((a, b) => (b.publish_score ?? 0) - (a.publish_score ?? 0));
+      pick = fallback[0];
+    }
+    if (pick) used.add(pick.id);
+    return { slot, intent, article: pick ?? null };
+  });
+}

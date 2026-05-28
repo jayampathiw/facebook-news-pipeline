@@ -34,7 +34,10 @@ export interface Article {
     best_format?: 'post' | 'carousel' | 'reel';
     fr_it_stake_first_sentence?: boolean;
     pillar_hint?: string | null;
+    identity_mode?: 'ORGOGLIO' | 'RESILIENZA' | 'DIBATTITO' | 'PATRIMONIO' | 'FIERTÉ' | 'RÉSISTANCE' | 'DÉBAT' | 'PATRIMOINE' | null;
   } | null;
+  source_type?: 'news' | 'historical';
+  historical_topic_id?: string | null;
   cluster_id: number | null;
   cluster_size: number;
   pillar: string | null;

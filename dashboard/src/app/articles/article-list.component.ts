@@ -3,6 +3,10 @@ import { Router, RouterLink } from '@angular/router';
 import { DatePipe } from '@angular/common';
 import { Article, ArticleStats, SupabaseService } from '../core/supabase.service';
 import { ArticleDetailComponent } from './article-detail-dialog.component';
+import {
+  assignArticlesToTodaySlots, bestSlotForArticle, bestSlotIntent, slotIntent,
+  slotIntentLabel, type SlotAssignment, type SlotIntent,
+} from '../core/slot-matcher';
 
 const COUNTRIES = ['FR', 'IT', 'AU', 'SE'];
 const CRITICALITIES = ['breaking', 'alert', 'trending', 'standard'];
@@ -80,6 +84,57 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
               <div style="font-size:26px;font-weight:700;line-height:1;color:var(--ink-standard);">{{ stats()!.manual_review ?? 0 }}</div>
               <div style="font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-text-2);margin-top:5px;">Review</div>
             </button>
+          </div>
+        }
+
+        <!-- ── Today's Plan ── (data-driven slot assignments; see docs/research/posting-time-analysis.md) -->
+        @if (todayPlans().length > 0) {
+          <div style="margin-bottom:14px;">
+            @for (plan of todayPlans(); track plan.country) {
+              <div style="margin-bottom:8px;">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                  <span style="font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-text-3);">
+                    {{ countryFlag(plan.country) }} Today's Plan · {{ countryName(plan.country) }}
+                  </span>
+                  <span style="font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--ink-text-3);">
+                    {{ plan.assignments.length }} slots
+                  </span>
+                </div>
+                <div class="scrollbar-none" style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;">
+                  @for (slot of plan.assignments; track slot.slot) {
+                    <div class="ink-surface" style="flex:1;min-width:200px;padding:10px 12px;border-radius:6px;display:flex;flex-direction:column;gap:6px;">
+                      <div style="display:flex;align-items:center;gap:6px;justify-content:space-between;">
+                        <div style="display:flex;align-items:baseline;gap:6px;">
+                          <span style="font-size:18px;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--ink-text);">{{ slot.slot }}</span>
+                          <span [class]="'ink-badge ' + intentBadgeClass(slot.intent)" style="font-size:9px;">{{ slotIntentLabelFor(slot.slot, plan.country) }}</span>
+                        </div>
+                      </div>
+                      @if (slot.article) {
+                        <div style="cursor:pointer;" (click)="openDetail(slot.article!)">
+                          <p style="font-size:12px;line-height:1.35;color:var(--ink-text);margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">{{ slot.article.title }}</p>
+                          <div style="display:flex;align-items:center;gap:4px;margin-top:4px;flex-wrap:wrap;">
+                            <span style="font-size:10px;color:var(--ink-text-3);">{{ slot.article.source }}</span>
+                            @if (identityModeChip(slot.article)) {
+                              <span class="ink-badge ib-brand" style="font-size:9px;">{{ identityModeChip(slot.article) }}</span>
+                            }
+                            @if (slot.article.source_type === 'historical') {
+                              <span class="ink-badge ib-ai" style="font-size:9px;">📜 historical</span>
+                            }
+                            <span style="margin-left:auto;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--ink-text-3);">score {{ slot.article.publish_score?.toFixed(0) ?? '—' }}</span>
+                          </div>
+                        </div>
+                        <button class="btn-brand" style="height:26px;font-size:11px;padding:0 10px;align-self:stretch;" [disabled]="posting()" (click)="postOne(slot.article!)">
+                          @if (posting()) { <span class="loading loading-spinner loading-xs"></span> }
+                          📤 Post now
+                        </button>
+                      } @else {
+                        <p style="font-size:11px;color:var(--ink-text-3);font-style:italic;margin:0;padding:6px 0;">No pending article fits this slot</p>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+            }
           </div>
         }
 
@@ -234,6 +289,9 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
                         <span>{{ countryFlag(article.country) }} {{ article.country }}</span>
                         <span class="hidden sm:inline" style="color:var(--ink-text-3);">·</span>
                         <span [class]="'hidden sm:inline ink-badge ' + statusBadgeClass(article.status)">{{ article.status }}</span>
+                        @if (article.status === 'pending' && articleBestSlot(article)) {
+                          <span [class]="'ink-badge ' + intentBadgeClass(articleSlotIntent(article))" style="font-size:9px;" [title]="'Best slot for this article based on identity mode + criticality'">{{ articleSlotLabel(article) }}</span>
+                        }
                         <span style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-text-3);">{{ article.created_at | date:'dd MMM' }}</span>
                       </div>
                       @if (visibleTags(article).length > 0) {
@@ -383,6 +441,18 @@ export class ArticleListComponent implements OnInit, OnDestroy {
     this.pagedArticles().length > 0 &&
     this.pagedArticles().every(a => this.selectedIds().includes(a.id))
   );
+
+  // Today's Plan: per-country slot assignments based on the data-driven schedule
+  // in docs/research/posting-time-analysis.md. Articles are matched to slots by
+  // their identity_mode and criticality (see slot-matcher.ts).
+  todayPlans = computed<{ country: string; assignments: SlotAssignment[] }[]>(() => {
+    const pending = this._allArticles().filter(a => a.status === 'pending' && a.ai_caption?.intro);
+    const countryFilter = this.filterCountry();
+    const countriesToShow = countryFilter ? [countryFilter] : ['IT', 'FR'];
+    return countriesToShow
+      .map(c => ({ country: c, assignments: assignArticlesToTodaySlots(c, pending) }))
+      .filter(p => p.assignments.length > 0);
+  });
 
   private toastTimer: any;
 
@@ -680,5 +750,58 @@ export class ArticleListComponent implements OnInit, OnDestroy {
       sport:      '⚽ Sport',
       social:     '👥 Social',
     } as any)[tag] ?? tag;
+  }
+
+  // ── Slot scheduling helpers ───────────────────────────────────────────
+  articleBestSlot(article: Article): string | null {
+    return bestSlotForArticle(article);
+  }
+
+  articleSlotIntent(article: Article): SlotIntent {
+    return bestSlotIntent(article);
+  }
+
+  articleSlotLabel(article: Article): string {
+    const slot = bestSlotForArticle(article);
+    if (!slot) return '';
+    const intentKey = bestSlotIntent(article);
+    const lang = article.country === 'IT' ? 'it' : article.country === 'FR' ? 'fr' : 'en';
+    return `→ ${slot} ${slotIntentLabel(intentKey, lang)}`;
+  }
+
+  slotIntentLabelFor(slot: string, country: string): string {
+    const lang = country === 'IT' ? 'it' : country === 'FR' ? 'fr' : 'en';
+    return slotIntentLabel(slotIntent(slot), lang);
+  }
+
+  intentBadgeClass(intent: SlotIntent): string {
+    return ({ morning: 'ib-alert', midday: 'ib-trending', evening: 'ib-ai' } as any)[intent] ?? '';
+  }
+
+  identityModeChip(article: Article): string | null {
+    const mode = article.content_signals?.identity_mode;
+    return mode ?? null;
+  }
+
+  async postOne(article: Article) {
+    if (article.status !== 'pending' || !article.ai_caption) {
+      this.showToast('Article must be pending with a generated caption', false);
+      return;
+    }
+    this.posting.set(true);
+    try {
+      const result = await this.supabase.postToFacebook([article.id]);
+      const r = result.results[0];
+      if (r?.success) {
+        this.showToast(`Posted "${article.title.slice(0, 40)}…"`);
+        await this.load();
+      } else {
+        this.showToast(r?.error ?? 'Post failed', false);
+      }
+    } catch (err: any) {
+      this.showToast(err.message, false);
+    } finally {
+      this.posting.set(false);
+    }
   }
 }
