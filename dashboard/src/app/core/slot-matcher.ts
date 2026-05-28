@@ -32,6 +32,26 @@ export function getSlotsForDate(country: string, date: Date = new Date()): strin
   return SLOTS_BY_DAY[country]?.[dayName] ?? [];
 }
 
+// Converts a Europe/Paris slot time (e.g. "22:00") to IST (Asia/Kolkata, UTC+5:30).
+// Dynamically reads the current Paris UTC offset so it handles CET/CEST automatically.
+// Returns "HH:MM" or "HH:MM+1" when the IST time crosses midnight.
+export function slotToIST(slot: string): string {
+  const [h, m] = slot.split(':').map(Number);
+  const now = new Date();
+  const parisH = parseInt(
+    now.toLocaleString('en-US', { timeZone: 'Europe/Paris', hour12: false, hour: '2-digit' }),
+    10,
+  ) % 24; // % 24 guards against the '24' midnight quirk in some browsers
+  const parisOffsetMin = ((parisH - now.getUTCHours() + 24) % 24) * 60;
+  const istRaw = h * 60 + m - parisOffsetMin + 330; // IST = UTC+5:30
+  const istMin = ((istRaw % 1440) + 1440) % 1440;
+  const nextDay = istRaw >= 1440;
+  const istH = Math.floor(istMin / 60);
+  const istM = istMin % 60;
+  const t = `${String(istH).padStart(2, '0')}:${String(istM).padStart(2, '0')}`;
+  return nextDay ? `${t}+1` : t;
+}
+
 export type SlotIntent = 'morning' | 'midday' | 'evening';
 
 // Maps a slot time to its editorial intent. Used to match articles to slots

@@ -5,7 +5,7 @@ import { Article, ArticleStats, SupabaseService } from '../core/supabase.service
 import { ArticleDetailComponent } from './article-detail-dialog.component';
 import {
   assignArticlesToTodaySlots, bestSlotForArticle, bestSlotIntent, slotIntent,
-  slotIntentLabel, type SlotAssignment, type SlotIntent,
+  slotIntentLabel, slotToIST, type SlotAssignment, type SlotIntent,
 } from '../core/slot-matcher';
 
 const COUNTRIES = ['FR', 'IT', 'AU', 'SE'];
@@ -106,6 +106,7 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
                       <div style="display:flex;align-items:center;gap:6px;justify-content:space-between;">
                         <div style="display:flex;align-items:baseline;gap:6px;">
                           <span style="font-size:18px;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--ink-text);">{{ slot.slot }}</span>
+                          <span style="font-size:11px;font-family:'JetBrains Mono',monospace;color:var(--ink-text-3);">{{ slotToIST(slot.slot) }} IST</span>
                           <span [class]="'ink-badge ' + intentBadgeClass(slot.intent)" style="font-size:9px;">{{ slotIntentLabelFor(slot.slot, plan.country) }}</span>
                         </div>
                       </div>
@@ -775,8 +776,10 @@ export class ArticleListComponent implements OnInit, OnDestroy {
     if (!slot) return '';
     const intentKey = bestSlotIntent(article);
     const lang = article.country === 'IT' ? 'it' : article.country === 'FR' ? 'fr' : 'en';
-    return `→ ${slot} ${slotIntentLabel(intentKey, lang)}`;
+    return `→ ${slot} / ${slotToIST(slot)} IST ${slotIntentLabel(intentKey, lang)}`;
   }
+
+  readonly slotToIST = slotToIST;
 
   slotIntentLabelFor(slot: string, country: string): string {
     const lang = country === 'IT' ? 'it' : country === 'FR' ? 'fr' : 'en';
