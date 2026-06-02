@@ -8,6 +8,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ASSETS_DIR = resolve(__dirname, '../../assets');
 const antonFontB64 = readFileSync(resolve(ASSETS_DIR, 'fonts/Anton-Regular.ttf')).toString('base64');
 
+// Anton condensed font: ~0.58 char width per em (empirical for uppercase-heavy news headlines)
+const ANTON_CHAR_RATIO = 0.58;
+
 // Split headline into at most 2 lines, breaking near the midpoint at a word boundary.
 function splitHeadline(headline) {
   if (!headline) return [''];
@@ -23,6 +26,16 @@ function splitHeadline(headline) {
   return [headline.slice(0, split), headline.slice(split + 1)];
 }
 
+// Scale fontSize down if the longest line would overflow the image width.
+function computeFontSize(w, lines) {
+  const base = Math.round(w * 0.082);
+  const maxLineChars = Math.max(...lines.map(l => l.length));
+  const safeWidth = w * 0.92;
+  const estimatedWidth = maxLineChars * base * ANTON_CHAR_RATIO;
+  if (estimatedWidth <= safeWidth) return base;
+  return Math.max(Math.round(w * 0.042), Math.round(base * safeWidth / estimatedWidth));
+}
+
 function escapeXml(s) {
   return (s || '').replace(/[<>&"']/g, c =>
     ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;', "'": '&apos;' }[c] ?? c)
@@ -35,7 +48,7 @@ export async function compositeImage(imageBuffer, headline, country) {
   const h = meta.height ?? 1080;
 
   const lines = splitHeadline(headline);
-  const fontSize = Math.round(w * 0.082);
+  const fontSize = computeFontSize(w, lines);
   const lineHeight = Math.round(fontSize * 1.28);
   const padV = Math.round(fontSize * 0.5);
   const padH = Math.round(w * 0.045);

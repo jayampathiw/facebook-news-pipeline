@@ -162,6 +162,11 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
             <option value="Santé">Santé</option>
             <option value="Environnement">Environnement</option>
           </select>
+          <select class="ink-select" style="min-width:120px;" [value]="filterSource()" (change)="filterSource.set($any($event.target).value); resetPage()">
+            <option value="">All Sources</option>
+            <option value="news">📰 News</option>
+            <option value="historical">🏛️ Historical</option>
+          </select>
           <button class="btn-ink" style="height:36px;gap:5px;flex-shrink:0;" (click)="load()">
             <svg style="width:13px;height:13px;flex-shrink:0;" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
@@ -257,7 +262,7 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
                     class="article-row"
                     [class.selected]="isSelected(article.id)"
                     [style.border-left-color]="critColor(article.criticality)"
-                    [style.background-color]="criticalityTintBg(article.criticality)"
+                    [style.background-color]="criticalityTintBg(article)"
                     [style.opacity]="rowOpacity(article)"
                     (click)="openDetail(article)"
                   >
@@ -290,6 +295,9 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
                         <span>{{ countryFlag(article.country) }} {{ article.country }}</span>
                         <span class="hidden sm:inline" style="color:var(--ink-text-3);">·</span>
                         <span [class]="'ink-badge ' + criticalityBadgeClass(article.criticality)" style="font-size:9px;text-transform:uppercase;letter-spacing:.05em;" [title]="'Criticality: ' + article.criticality">{{ criticalityLabel(article.criticality) }}</span>
+                        @if (article.source_type === 'historical') {
+                          <span class="ink-badge" style="font-size:9px;background:rgba(180,120,40,0.15);color:#b47828;letter-spacing:.05em;" title="Historical / anniversary story">🏛️ {{ article.country === 'IT' ? 'STORIA' : 'HISTOIRE' }}</span>
+                        }
                         <span [class]="'hidden sm:inline ink-badge ' + statusBadgeClass(article.status)">{{ article.status }}</span>
                         @if (article.status === 'pending' && articleBestSlot(article)) {
                           <span [class]="'ink-badge ' + intentBadgeClass(articleSlotIntent(article))" style="font-size:9px;" [title]="'Best slot for this article based on identity mode + criticality'">{{ articleSlotLabel(article) }}</span>
@@ -381,6 +389,7 @@ export class ArticleListComponent implements OnInit, OnDestroy {
   filterCriticality = signal('');
   filterTags        = signal<string[]>([]);
   filterCategory    = signal('');
+  filterSource      = signal('');
   sortField  = signal('publish_score');
   sortDir    = signal<'asc' | 'desc'>('desc');
   currentPage = signal(0);
@@ -417,6 +426,8 @@ export class ArticleListComponent implements OnInit, OnDestroy {
     }
     const category = this.filterCategory();
     if (category) items = items.filter(a => a.story_category === category);
+    const source = this.filterSource();
+    if (source) items = items.filter(a => (a.source_type ?? 'news') === source);
 
     const field = this.sortField();
     const dir = this.sortDir() === 'asc' ? 1 : -1;
@@ -690,13 +701,14 @@ export class ArticleListComponent implements OnInit, OnDestroy {
     this.router.navigate(['/login']);
   }
 
-  criticalityTintBg(level: string): string {
+  criticalityTintBg(article: Article): string {
+    if (article.source_type === 'historical') return 'rgba(180, 120, 40, 0.07)';
     return ({
       breaking: 'rgba(255, 54, 54, 0.08)',
       alert:    'rgba(255, 140, 0, 0.08)',
       trending: 'rgba(30, 122, 255, 0.06)',
       standard: '',
-    } as any)[level] ?? '';
+    } as any)[article.criticality] ?? '';
   }
 
   rowOpacity(article: Article): string {

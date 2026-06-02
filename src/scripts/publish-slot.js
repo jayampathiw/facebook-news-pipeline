@@ -12,9 +12,9 @@ import { compositeImage } from '../utils/imageComposite.js';
 const FB_BASE = 'https://graph.facebook.com/v22.0';
 
 // IMAGE_PROVIDER selects the image generation backend.
-// Supported: 'cloudflare' (default), 'google', 'pollinations'
-// Set IMAGE_PROVIDER as a GitHub Actions variable (not secret) to switch providers.
-const IMAGE_PROVIDER = process.env.IMAGE_PROVIDER || 'cloudflare';
+// Supported: 'pollinations' (default, flux-pro), 'cloudflare' (SDXL), 'google' (Gemini)
+// Set IMAGE_PROVIDER / POLLINATIONS_MODEL / CF_IMAGE_MODEL as GitHub Actions variables to override.
+const IMAGE_PROVIDER = process.env.IMAGE_PROVIDER || 'pollinations';
 
 const REQUIRED_ENV = ['SUPABASE_URL', 'SUPABASE_KEY'];
 const missing = REQUIRED_ENV.filter(k => !process.env[k]);
@@ -93,7 +93,8 @@ async function publishForCountry(country, slotTarget) {
       fbPostId = await postVideoToFacebook(article.reel_path, article.ai_caption, article, country);
     } else {
       console.log(`[${country}] Generating image for article ${article.id}…`);
-      const imageBuffer = await generateImage(article.image_prompt);
+      const rawBuffer   = await generateImage(article.image_prompt);
+      const imageBuffer = await sharpenBuffer(rawBuffer);
 
       console.log(`[${country}] Compositing overlay…`);
       const finalBuffer = await compositeImage(imageBuffer, article.image_headline ?? '', country);
@@ -129,6 +130,22 @@ async function publishForCountry(country, slotTarget) {
   }
 }
 
+// Negative prompt injected into every provider to suppress cartoonish/illustrated outputs and anatomy errors.
+const NEGATIVE_PROMPT = 'cartoon, anime, illustration, painting, drawing, 3D render, CGI, digital art, watercolor, concept art, unrealistic, fantasy, sketch, vector art, low quality, blurry, soft focus, out of focus, noise, grain, jpeg artifacts, disembodied limbs, floating hands, floating arms, extra limbs, severed limbs, missing body, anatomical errors, extra fingers, deformed hands, mutated body parts';
+
+// Prepended to every prompt to reinforce photorealism before the model reads anything else.
+const PHOTO_PREFIX = 'DSLR photograph, photorealistic, tack sharp, ultra detailed, high resolution, 8K UHD, f/8 maximum clarity, high micro-contrast, crisp edges — ';
+
+function buildPrompt(raw) {
+  return `${PHOTO_PREFIX}${raw}`;
+}
+
+async function sharpenBuffer(buffer) {
+  return sharp(buffer)
+    .sharpen({ sigma: 1.2, m1: 0.5, m2: 3.5 })
+    .toBuffer();
+}
+
 // Dispatcher — routes to the active provider
 async function generateImage(prompt) {
   console.log(`[image] Generating via provider: ${IMAGE_PROVIDER}`);
@@ -137,13 +154,13 @@ async function generateImage(prompt) {
   return generateImageCloudflare(prompt); // default
 }
 
-// Cloudflare Workers AI — FLUX.1-schnell, ~2000 imgs/day free, resets daily
+// Cloudflare Workers AI — flux-1-schnell (~2000 imgs/day free, resets daily)
 // Override model via CF_IMAGE_MODEL env var (e.g. @cf/stabilityai/stable-diffusion-xl-base-1.0)
 async function generateImageCloudflare(prompt) {
   const model = process.env.CF_IMAGE_MODEL || '@cf/black-forest-labs/flux-1-schnell';
   const url = `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/run/${model}`;
   const res = await axios.post(url,
-    { prompt, num_steps: 8, width: 1080, height: 1080 },
+    { prompt: buildPrompt(prompt), num_steps: 8, width: 1080, height: 1080 },
     {
       headers: { Authorization: `Bearer ${process.env.CF_API_TOKEN}`, 'Content-Type': 'application/json' },
       timeout: 60000,
@@ -155,10 +172,10 @@ async function generateImageCloudflare(prompt) {
 // Google AI Studio — Gemini image generation, ~500 imgs/day free
 // Override model via GOOGLE_IMAGE_MODEL env var
 async function generateImageGoogle(prompt) {
-  const model = process.env.GOOGLE_IMAGE_MODEL || 'gemini-2.0-flash-preview-image-generation';
+  const model = process.env.GOOGLE_IMAGE_MODEL || 'gemini-3.1-flash-image';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GOOGLE_AI_KEY}`;
   const res = await axios.post(url, {
-    contents: [{ parts: [{ text: prompt }] }],
+    contents: [{ parts: [{ text: `${buildPrompt(prompt)}\n\nNegative prompt: ${NEGATIVE_PROMPT}` }] }],
     generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
   }, {
     headers: { 'Content-Type': 'application/json' },
@@ -171,12 +188,13 @@ async function generateImageGoogle(prompt) {
 }
 
 // Pollinations.ai — free, no key required (POLLINATIONS_TOKEN optional, removes rate limits)
-// Override model via POLLINATIONS_MODEL env var (e.g. flux-pro, turbo)
+// Default model: flux-pro (photorealistic). Override via POLLINATIONS_MODEL env var.
 async function generateImagePollinations(prompt) {
-  const model = process.env.POLLINATIONS_MODEL || 'flux';
+  const model = process.env.POLLINATIONS_MODEL || 'flux-pro';
   const token = process.env.POLLINATIONS_TOKEN ? `&token=${process.env.POLLINATIONS_TOKEN}` : '';
-  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1080&height=1080&model=${model}&nologo=true${token}`;
-  const res = await axios.get(url, { responseType: 'arraybuffer', timeout: 90000 });
+  const negative = `&negative=${encodeURIComponent(NEGATIVE_PROMPT)}`;
+  const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(buildPrompt(prompt))}?width=1080&height=1080&model=${model}&nologo=true&enhance=true&steps=35${negative}${token}`;
+  const res = await axios.get(url, { responseType: 'arraybuffer', timeout: 150000 });
   return Buffer.from(res.data);
 }
 
