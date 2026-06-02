@@ -43,6 +43,7 @@ body {
 @keyframes slide-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
 @keyframes fade-in     { from { opacity: 0; } to { opacity: 1; } }
 @keyframes sig-pulse   { 0%, 100% { opacity: 1; } 50% { opacity: .45; transform: scale(.8); } }
+@keyframes slot-pulse  { 0% { box-shadow: 0 0 0 0 rgba(99,102,241,.7); } 70% { box-shadow: 0 0 0 6px rgba(99,102,241,0); } 100% { box-shadow: 0 0 0 0 rgba(99,102,241,0); } }
 
 .animate-slide-up    { animation: slide-up    0.32s cubic-bezier(.2, .8, .4, 1); }
 .animate-slide-right { animation: slide-right 0.32s cubic-bezier(.2, .8, .4, 1); }
@@ -224,6 +225,7 @@ body {
 }
 .article-row:hover { background: var(--ink-hover); border-color: #4a5a80; }
 .article-row.selected { background: rgba(99, 102, 241, .07); border-color: rgba(99, 102, 241, .5); }
+.article-row.slot-highlight { border-color: var(--ink-brand) !important; animation: slot-pulse 1s ease-out 2; }
 
 /* ── Tabs ──────────────────────────────────────────────── */
 .ink-tabs {

@@ -129,7 +129,10 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
                           📤 Post now
                         </button>
                       } @else {
-                        <p style="font-size:11px;color:var(--ink-text-3);font-style:italic;margin:0;padding:6px 0;">No pending article fits this slot</p>
+                        <button class="btn-ink" style="height:28px;font-size:11px;padding:0 10px;align-self:flex-start;margin-top:2px;"
+                          (click)="pickForSlot(slot, plan.country); $event.stopPropagation()">
+                          Pick best article →
+                        </button>
                       }
                     </div>
                   }
@@ -260,7 +263,9 @@ const COUNTRY_NAMES: Record<string, string> = { FR: 'France', IT: 'Italy', AU: '
                 @for (article of pagedArticles(); track article.id) {
                   <div
                     class="article-row"
+                    [id]="'article-' + article.id"
                     [class.selected]="isSelected(article.id)"
+                    [class.slot-highlight]="highlightedArticleId() === article.id"
                     [style.border-left-color]="critColor(article.criticality)"
                     [style.background-color]="criticalityTintBg(article)"
                     [style.opacity]="rowOpacity(article)"
@@ -467,7 +472,9 @@ export class ArticleListComponent implements OnInit, OnDestroy {
       .filter(p => p.assignments.length > 0);
   });
 
+  highlightedArticleId = signal<string | null>(null);
   private toastTimer: any;
+  private highlightTimer: any;
 
   constructor(private supabase: SupabaseService, private router: Router) {}
 
@@ -481,6 +488,7 @@ export class ArticleListComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     clearTimeout(this.toastTimer);
+    clearTimeout(this.highlightTimer);
   }
 
   toggleTheme() {
@@ -805,6 +813,46 @@ export class ArticleListComponent implements OnInit, OnDestroy {
   identityModeChip(article: Article): string | null {
     const mode = article.content_signals?.identity_mode;
     return mode ?? null;
+  }
+
+  pickForSlot(slot: SlotAssignment, country: string) {
+    const pending = this._allArticles().filter(a =>
+      a.country === country && a.status === 'pending'
+    );
+
+    if (!pending.length) {
+      this.showToast('No pending articles available for this country', false);
+      return;
+    }
+
+    const byIntent = pending
+      .filter(a => bestSlotIntent(a) === slot.intent)
+      .sort((a, b) => (b.publish_score ?? 0) - (a.publish_score ?? 0));
+
+    const pick = byIntent[0] ??
+      [...pending].sort((a, b) => (b.publish_score ?? 0) - (a.publish_score ?? 0))[0];
+
+    // Highlight the picked row
+    clearTimeout(this.highlightTimer);
+    this.highlightedArticleId.set(pick.id);
+    this.highlightTimer = setTimeout(() => this.highlightedArticleId.set(null), 5000);
+
+    // Set filters so the article is visible at the top of the list
+    this.filterCountry.set(country);
+    this.filterStatus.set('pending');
+    this.filterSearch.set('');
+    this.filterCriticality.set('');
+    this.filterTags.set([]);
+    this.filterCategory.set('');
+    this.filterSource.set('');
+    this.sortField.set('publish_score');
+    this.sortDir.set('desc');
+    this.currentPage.set(0);
+
+    // Scroll the row into view after Angular updates the DOM
+    setTimeout(() => {
+      document.getElementById(`article-${pick.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 100);
   }
 
   async postOne(article: Article) {
