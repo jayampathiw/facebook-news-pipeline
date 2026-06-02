@@ -23,6 +23,11 @@ export const SOURCES = {
       // Deferred — licensed/syndication cost exceeds free tier (D3a): AFP wire, Reuters FR,
       // Le Point (paywall API), L'Express (paywall API), Courrier International (licensed content)
     ],
+    firecrawl_homepages: [
+      { name: 'BFM TV',      url: 'https://www.bfmtv.com/' },
+      { name: 'Le Monde',    url: 'https://www.lemonde.fr/' },
+      { name: 'France Info', url: 'https://www.francetvinfo.fr/' },
+    ],
     newsapi: { query: 'France actualité région Provence Méditerranée', language: 'fr' },
     captionLanguage: 'français',
     fbPageEnvKey: 'FR',
@@ -53,6 +58,11 @@ export const SOURCES = {
       { name: 'ANSA Cronaca',                url: 'https://www.ansa.it/sito/notizie/cronaca/cronaca_rss.xml' },
       // Phase 2 (10k engaged-follower gate): Il Sole 24 Ore, Corriere del Veneto
       // Phase 3 (Month 6+): Dissapore, other vertical feeds (investigate when triggered)
+    ],
+    firecrawl_homepages: [
+      { name: 'ANSA',                url: 'https://www.ansa.it/' },
+      { name: 'Repubblica',          url: 'https://www.repubblica.it/' },
+      { name: 'Corriere della Sera', url: 'https://www.corriere.it/' },
     ],
     newsapi: { query: 'Italia attualità Roma salute famiglia pensioni', language: 'it' },
     captionLanguage: 'italiano',

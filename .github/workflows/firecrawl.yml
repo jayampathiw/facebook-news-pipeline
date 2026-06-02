@@ -1,0 +1,37 @@
+name: Firecrawl Homepage Fetch
+
+on:
+  schedule:
+    # 4× per day, timed ~1h before each posting slot (slots are 07:30, 13:00, 22:00 CEST)
+    - cron: '30 4 * * *'   # 04:30 UTC → ready for 07:30 CEST slot
+    - cron: '0 10 * * *'   # 10:00 UTC → ready for 13:00 CEST slot
+    - cron: '0 14 * * *'   # 14:00 UTC → afternoon coverage
+    - cron: '0 19 * * *'   # 19:00 UTC → ready for 22:00 CEST slot
+  workflow_dispatch:        # manual trigger from GitHub Actions UI
+
+jobs:
+  firecrawl:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Firecrawl homepage fetch
+        run: node src/scripts/firecrawl-fetch.js
+        env:
+          SUPABASE_URL:  ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:  ${{ secrets.SUPABASE_KEY }}
+          FIRECRAWL_KEY: ${{ secrets.FIRECRAWL_KEY }}
+
+      - name: Log completion
+        run: echo "Firecrawl fetch completed at $(date -u)"
