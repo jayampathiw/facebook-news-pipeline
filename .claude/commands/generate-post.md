@@ -78,14 +78,45 @@ For each article produce this exact block:
 
 **Image headline:** `"[punchy overlay text — max 65 chars, in article's language]"`
 
-**Formatted Image Prompt** *(copy directly into Midjourney / DALL-E)*:
+**Formatted Image Prompt** *(copy directly into Midjourney / Cloudflare Flux)*:
 ```
 [ORIGINAL PROMPT]
-[Write the full ultra-realistic cinematic photograph description here.
-Requirements: no people, no faces, no identifiable individuals, no flags with readable text, no brand logos, no text in scene.
-Include: specific camera + model, lens focal length, aperture, named light source, colour grading note.
-Style: photojournalism / documentary realism / atmospheric editorial.
-End with: no people, no text, no logos, photorealistic.]
+[Choose style based on article category, then write the full description:
+
+POLITICS / ELECTIONS / CRIME / SOCIAL ISSUES → Editorial painterly illustration:
+Painterly editorial illustration in high-end op-ed style, [describe scene/subject],
+loose textured brushwork with visible canvas grain, restrained muted palette of [2–3 colours],
+[describe lighting and atmosphere], story subject in lower 60% of frame,
+upper 40% reserved as [warm/cool/neutral] gradient negative space for headline overlay,
+high-end editorial illustration style, painterly op-ed art.
+
+SPORTS / ATHLETICS / MATCH RESULTS / PLAYER NEWS → 3D rendered soft realism:
+3D rendered editorial illustration with semi-stylised soft realism, [describe athlete in action or emotional moment —
+celebrating, kneeling, arms raised, mid-sprint], clean modern 3D character design — slightly stylised proportions,
+polished but not cartoonish, soft subsurface skin shading, cinematic lighting with warm rim light from upper right
+and cool ambient fill, [describe surface and environment — clay court texture, football pitch, athletics track],
+blurred low-poly crowd in background, soft global illumination, depth of field, subject in lower 60% of frame,
+upper 40% reserved as clean atmospheric sky gradient for headline overlay, polished 3D editorial style.
+
+TECHNOLOGY / BUSINESS / PRODUCTS → 3D rendered soft realism:
+3D rendered editorial illustration with polished soft realism, [describe scene/subject],
+slightly stylised design, soft subsurface shading, [describe lighting — cinematic, depth of field],
+[describe background and atmosphere], subject in lower 60% of frame,
+upper 40% reserved as clean atmospheric gradient for headline overlay,
+polished 3D editorial style.
+
+BREAKING NEWS / CRISIS → Ultrarealistic photoreal:
+[Describe scene — location, environment, atmosphere. Specific camera + model, lens focal length, aperture,
+named light source, colour grading note. No people, no text, no logos.]
+Subject in lower 60% of frame, upper 40% reserved as atmospheric gradient for headline overlay.
+No people, no text, no logos, photorealistic.
+
+Rules that apply to ALL styles:
+- Stylised faces and figures are acceptable (editorial illustration only — not photorealistic likenesses)
+- Never include readable text or words in the scene (describe interfaces/screens conceptually, not literally)
+- Never use real publication names as style anchors (causes text to leak into image)
+- No brand logos visible
+- No flags with readable text]
 
 [TEXT OVERLAY]
 Content: "[exact image headline from above]"
@@ -93,9 +124,8 @@ Position: upper
 Opacity: 80%
 
 [OUTPUT]
-No people, no text, no logos visible.
 Add a subtle gradient overlay beneath the text for legibility.
-Overlay the text above in large white Anton font at the upper position, semi-transparent at 80% opacity, integrated with [key lighting element from the original prompt — e.g. "the warm golden hour light", "the cold fluorescent corridor lighting"].
+Overlay the text above in large white Anton font at the upper position, semi-transparent at 80% opacity.
 Add [FranceAujourdhui_Logo_v2.png for FR / ItaliaOggi_Logo.png for IT] watermark, bottom-right, small, 70% opacity.
 ```
 

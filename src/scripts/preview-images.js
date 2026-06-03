@@ -59,11 +59,24 @@ async function run() {
   console.log('[preview] Done — open the output/previews/ folder to review images.');
 }
 
-const NEGATIVE_PROMPT = 'cartoon, anime, illustration, painting, drawing, 3D render, CGI, digital art, watercolor, concept art, unrealistic, fantasy, sketch, vector art, low quality, blurry, soft focus, out of focus, noise, grain, jpeg artifacts, disembodied limbs, floating hands, floating arms, extra limbs, severed limbs, missing body, anatomical errors, extra fingers, deformed hands, mutated body parts';
+// Negative prompt for photoreal-only mode (blocks all illustration/creative styles)
+const PHOTO_NEGATIVE = 'cartoon, anime, illustration, painting, drawing, 3D render, CGI, digital art, watercolor, concept art, unrealistic, fantasy, sketch, vector art, low quality, blurry, soft focus, out of focus, noise, grain, jpeg artifacts, disembodied limbs, floating hands, floating arms, extra limbs, severed limbs, missing body, anatomical errors, extra fingers, deformed hands, mutated body parts';
+
+// Negative prompt for editorial/illustration mode (blocks photoreal artifacts only)
+const EDITORIAL_NEGATIVE = 'photorealistic photograph, DSLR photo, stock photography, hyperrealistic skin texture, low quality, blurry, noise, jpeg artifacts, deformed limbs, extra fingers, anatomical errors, missing limbs';
+
+// IMAGE_STYLE env var selects mode: 'editorial' (default) or 'photoreal'
+const IMAGE_STYLE = process.env.IMAGE_STYLE || 'editorial';
+
 const PHOTO_PREFIX = 'DSLR photograph, photorealistic, tack sharp, ultra detailed, high resolution, 8K UHD, f/8 maximum clarity, high micro-contrast, crisp edges — ';
 
 function buildPrompt(raw) {
-  return `${PHOTO_PREFIX}${raw}`;
+  if (IMAGE_STYLE === 'photoreal') return `${PHOTO_PREFIX}${raw}`;
+  return raw; // editorial and 3D prompts carry their own style anchors
+}
+
+function getNegativePrompt() {
+  return IMAGE_STYLE === 'photoreal' ? PHOTO_NEGATIVE : EDITORIAL_NEGATIVE;
 }
 
 async function sharpenBuffer(buffer) {
@@ -83,7 +96,7 @@ async function generateImageCloudflare(prompt) {
   const model = process.env.CF_IMAGE_MODEL || '@cf/black-forest-labs/flux-1-schnell';
   const url = `https://api.cloudflare.com/client/v4/accounts/${process.env.CF_ACCOUNT_ID}/ai/run/${model}`;
   const res = await axios.post(url,
-    { prompt: buildPrompt(prompt), num_steps: 8, width: 1080, height: 1080 },
+    { prompt: buildPrompt(prompt), num_steps: 8, width: 1080, height: 1920 },
     { headers: { Authorization: `Bearer ${process.env.CF_API_TOKEN}`, 'Content-Type': 'application/json' }, timeout: 60000 }
   );
   return Buffer.from(res.data.result.image, 'base64');
@@ -93,7 +106,7 @@ async function generateImageGoogle(prompt) {
   const model = process.env.GOOGLE_IMAGE_MODEL || 'gemini-3.1-flash-image';
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GOOGLE_AI_KEY}`;
   const res = await axios.post(url, {
-    contents: [{ parts: [{ text: `${buildPrompt(prompt)}\n\nNegative prompt: ${NEGATIVE_PROMPT}` }] }],
+    contents: [{ parts: [{ text: `${buildPrompt(prompt)}\n\nNegative prompt: ${getNegativePrompt()}` }] }],
     generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
   }, { headers: { 'Content-Type': 'application/json' }, timeout: 60000 });
   const parts = res.data.candidates[0].content.parts;
@@ -105,7 +118,7 @@ async function generateImageGoogle(prompt) {
 async function generateImagePollinations(prompt) {
   const model = process.env.POLLINATIONS_MODEL || 'flux-pro';
   const token = process.env.POLLINATIONS_TOKEN ? `&token=${process.env.POLLINATIONS_TOKEN}` : '';
-  const negative = `&negative=${encodeURIComponent(NEGATIVE_PROMPT)}`;
+  const negative = `&negative=${encodeURIComponent(getNegativePrompt())}`;
   const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(buildPrompt(prompt))}?width=1080&height=1080&model=${model}&nologo=true&enhance=true&steps=35${negative}${token}`;
   const res = await axios.get(url, { responseType: 'arraybuffer', timeout: 150000 });
   return Buffer.from(res.data);
