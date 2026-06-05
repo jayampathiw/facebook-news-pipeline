@@ -1,7 +1,7 @@
 import { Component, OnInit, signal, computed } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { DatePipe, DecimalPipe } from '@angular/common';
-import { ContentItem, ContentItemStats, SupabaseService } from '../core/supabase.service';
+import { ContentItem, ContentItemStats, RenderQueueStats, SupabaseService } from '../core/supabase.service';
 
 const STYLE_COLORS: Record<string, string> = {
   factual:   'rgba(30,122,255,.15)',
@@ -15,6 +15,17 @@ const STYLE_TEXT: Record<string, string> = {
   listicle:  '#ff8c00',
   silent:    '#888',
 };
+
+const AVAILABLE_CHANNELS = [
+  { key: 'wildlife/factual/EN',    page: 'NaturePulse',        sub: 'Wildlife · Factual'    },
+  { key: 'wildlife/listicle/EN',   page: 'NaturePulse',        sub: 'Wildlife · Listicle'   },
+  { key: 'wildlife/cinematic/EN',  page: 'NatureFrame',        sub: 'Wildlife · Cinematic'  },
+  { key: 'wildlife/silent/EN',     page: 'NatureFrame',        sub: 'Wildlife · Silent'     },
+  { key: 'culture/silent/FR',      page: "France Aujourd'hui", sub: 'Culture · Silent'      },
+  { key: 'culture/silent/FR-long', page: "France Aujourd'hui", sub: 'Culture · Silent Long' },
+  { key: 'culture/silent/IT',      page: 'Vivere in Italia',   sub: 'Culture · Silent'      },
+  { key: 'culture/silent/IT-long', page: 'Vivere in Italia',   sub: 'Culture · Silent Long' },
+];
 
 @Component({
   selector: 'app-reel-list',
@@ -65,6 +76,12 @@ const STYLE_TEXT: Record<string, string> = {
               <div style="font-size:26px;font-weight:700;line-height:1;color:var(--ink-breaking);">{{ stats()!.failed }}</div>
               <div style="font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-text-2);margin-top:5px;">Failed</div>
             </button>
+            @if ((renderQueueStats()?.queued ?? 0) + (renderQueueStats()?.processing ?? 0) > 0) {
+              <button class="stat-card" style="cursor:default;border-color:var(--ink-alert);">
+                <div style="font-size:26px;font-weight:700;line-height:1;color:var(--ink-alert);">{{ (renderQueueStats()?.queued ?? 0) + (renderQueueStats()?.processing ?? 0) }}</div>
+                <div style="font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-text-2);margin-top:5px;">In Queue</div>
+              </button>
+            }
           </div>
         }
 
@@ -88,11 +105,24 @@ const STYLE_TEXT: Record<string, string> = {
             <option value="listicle">Listicle</option>
             <option value="silent">Silent</option>
           </select>
+          <select class="ink-select" style="min-width:160px;" [value]="filterChannel()" (change)="filterChannel.set($any($event.target).value); currentPage.set(0)">
+            <option value="">All Channels</option>
+            @for (c of channels(); track c) { <option [value]="c">{{ c }}</option> }
+          </select>
           <button class="btn-ink" style="height:36px;gap:5px;flex-shrink:0;" (click)="load()">
             <svg style="width:13px;height:13px;" viewBox="0 0 20 20" fill="currentColor">
               <path fill-rule="evenodd" d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.601 2.566 1 1 0 11-1.885.666A5.002 5.002 0 005.999 7H9a1 1 0 010 2H4a1 1 0 01-1-1V3a1 1 0 011-1zm.008 9.057a1 1 0 011.276.61A5.002 5.002 0 0014.001 13H11a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0v-2.101a7.002 7.002 0 01-11.601-2.566 1 1 0 01.61-1.276z" clip-rule="evenodd"/>
             </svg>
             <span class="hidden sm:inline">Refresh</span>
+          </button>
+          <button class="btn-brand" style="height:36px;gap:5px;flex-shrink:0;position:relative;" (click)="showQueueDialog.set(true)">
+            <svg style="width:13px;height:13px;" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd"/>
+            </svg>
+            <span class="hidden sm:inline">New Reel</span>
+            @if ((renderQueueStats()?.queued ?? 0) + (renderQueueStats()?.processing ?? 0) > 0) {
+              <span style="position:absolute;top:-5px;right:-5px;background:var(--ink-alert);color:white;font-size:9px;font-weight:700;border-radius:50%;width:16px;height:16px;display:flex;align-items:center;justify-content:center;">{{ (renderQueueStats()?.queued ?? 0) + (renderQueueStats()?.processing ?? 0) }}</span>
+            }
           </button>
         </div>
 
@@ -376,6 +406,41 @@ const STYLE_TEXT: Record<string, string> = {
       </div>
     }
 
+    <!-- Queue dialog -->
+    @if (showQueueDialog()) {
+      <div style="position:fixed;inset:0;z-index:50;" class="animate-fade-in">
+        <div style="position:absolute;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(8px);" (click)="showQueueDialog.set(false)"></div>
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--ink-surface);border:1px solid var(--ink-border);border-radius:12px;width:min(480px,calc(100vw - 32px));max-height:80vh;overflow-y:auto;z-index:10;display:flex;flex-direction:column;">
+          <!-- Dialog header -->
+          <div style="padding:14px 18px;border-bottom:1px solid var(--ink-border);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">
+            <span style="font-size:14px;font-weight:700;color:var(--ink-text);">Queue New Reel</span>
+            <button class="btn-ghost-icon" (click)="showQueueDialog.set(false)">✕</button>
+          </div>
+          <!-- Dialog body -->
+          <div style="padding:16px 18px;overflow-y:auto;">
+            <p style="font-size:12px;color:var(--ink-text-2);margin:0 0 14px;line-height:1.6;">
+              Select a channel to queue a render job.
+              Then run <code style="background:var(--ink-raised);padding:2px 6px;border-radius:3px;font-family:'JetBrains Mono',monospace;font-size:11px;">node src/scripts/process-queue.js</code> in the reels-pipeline terminal.
+            </p>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              @for (ch of AVAILABLE_CHANNELS; track ch.key) {
+                <button
+                  style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--ink-raised);border:1px solid var(--ink-border);border-radius:8px;cursor:pointer;text-align:left;width:100%;transition:border-color .15s,background .15s;"
+                  [disabled]="queueing()"
+                  (click)="queueRender(ch.key); showQueueDialog.set(false)">
+                  <div>
+                    <div style="font-size:13px;font-weight:600;color:var(--ink-text);">{{ ch.page }}</div>
+                    <div style="font-size:10px;color:var(--ink-text-3);margin-top:2px;font-family:'JetBrains Mono',monospace;">{{ ch.key }}</div>
+                  </div>
+                  <span class="ink-badge" style="font-size:9px;flex-shrink:0;margin-left:12px;">{{ ch.sub }}</span>
+                </button>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
     <!-- Toast -->
     @if (toast()) {
       <div class="ink-toast">
@@ -398,29 +463,37 @@ export class ReelListComponent implements OnInit {
   selectedItem = signal<ContentItem | null>(null);
   toast        = signal<{ msg: string; ok: boolean } | null>(null);
 
-  filterSearch = signal('');
-  filterNiche  = signal('');
-  filterStyle  = signal('');
-  filterStatus = signal('');
-  sortField    = signal('created_at');
-  sortDir      = signal<'asc' | 'desc'>('desc');
-  currentPage  = signal(0);
-  selectedIds  = signal<number[]>([]);
+  filterSearch   = signal('');
+  filterNiche    = signal('');
+  filterStyle    = signal('');
+  filterStatus   = signal('');
+  filterChannel  = signal('');
+  sortField      = signal('created_at');
+  sortDir        = signal<'asc' | 'desc'>('desc');
+  currentPage    = signal(0);
+  selectedIds    = signal<number[]>([]);
+  showQueueDialog = signal(false);
+  queueing        = signal(false);
+  renderQueueStats = signal<RenderQueueStats | null>(null);
 
   readonly pageSize = 25;
 
-  niches = computed(() => [...new Set(this._allItems().map(i => i.niche))].sort());
+  niches   = computed(() => [...new Set(this._allItems().map(i => i.niche))].sort());
+  channels = computed(() => [...new Set(this._allItems().map(i => i.channel_key))].sort());
+  readonly AVAILABLE_CHANNELS = AVAILABLE_CHANNELS;
 
   filteredItems = computed(() => {
     let items = [...this._allItems()];
     const q = this.filterSearch().toLowerCase();
     if (q) items = items.filter(i => (i.title ?? '').toLowerCase().includes(q) || i.channel_key.toLowerCase().includes(q));
-    const niche  = this.filterNiche();
-    const style  = this.filterStyle();
-    const status = this.filterStatus();
-    if (niche)  items = items.filter(i => i.niche === niche);
-    if (style)  items = items.filter(i => i.style === style);
-    if (status) items = items.filter(i => i.status === status);
+    const niche   = this.filterNiche();
+    const style   = this.filterStyle();
+    const status  = this.filterStatus();
+    const channel = this.filterChannel();
+    if (niche)   items = items.filter(i => i.niche === niche);
+    if (style)   items = items.filter(i => i.style === style);
+    if (status)  items = items.filter(i => i.status === status);
+    if (channel) items = items.filter(i => i.channel_key === channel);
     const field = this.sortField();
     const dir = this.sortDir() === 'asc' ? 1 : -1;
     items.sort((a, b) => {
@@ -467,12 +540,14 @@ export class ReelListComponent implements OnInit {
     this.loading.set(true);
     this.selectedIds.set([]);
     try {
-      const [items, statsData] = await Promise.all([
+      const [items, statsData, queueStats] = await Promise.all([
         this.supabase.getContentItems(),
         this.supabase.getContentItemStats(),
+        this.supabase.getRenderQueueStats(),
       ]);
       this._allItems.set(items);
       this.stats.set(statsData);
+      this.renderQueueStats.set(queueStats);
       this.currentPage.set(0);
     } catch (err: any) {
       this.showToast(`Load failed: ${err.message}`, false);
@@ -578,6 +653,20 @@ export class ReelListComponent implements OnInit {
   async signOut() {
     await this.supabase.signOut();
     this.router.navigate(['/login']);
+  }
+
+  async queueRender(channelKey: string) {
+    this.queueing.set(true);
+    try {
+      await this.supabase.queueRender(channelKey);
+      this.showToast(`Queued: ${channelKey}`);
+      const stats = await this.supabase.getRenderQueueStats();
+      this.renderQueueStats.set(stats);
+    } catch (err: any) {
+      this.showToast(err.message, false);
+    } finally {
+      this.queueing.set(false);
+    }
   }
 
   copy(text: string, label: string) {

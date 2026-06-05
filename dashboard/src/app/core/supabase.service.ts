@@ -149,6 +149,11 @@ export interface ContentItemStats {
   blocked: number;
 }
 
+export interface RenderQueueStats {
+  queued: number;
+  processing: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SupabaseService {
   private client: SupabaseClient;
@@ -333,6 +338,19 @@ export class SupabaseService {
 
   async deleteContentItems(ids: number[]): Promise<void> {
     const { error } = await this.client.from('content_items').delete().in('id', ids);
+    if (error) throw error;
+  }
+
+  async getRenderQueueStats(): Promise<RenderQueueStats> {
+    const [q, p] = await Promise.all([
+      this.client.from('render_queue').select('*', { count: 'exact', head: true }).eq('status', 'queued'),
+      this.client.from('render_queue').select('*', { count: 'exact', head: true }).eq('status', 'processing'),
+    ]);
+    return { queued: q.count ?? 0, processing: p.count ?? 0 };
+  }
+
+  async queueRender(channelKey: string): Promise<void> {
+    const { error } = await this.client.from('render_queue').insert({ channel_key: channelKey });
     if (error) throw error;
   }
 
