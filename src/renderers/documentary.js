@@ -58,8 +58,18 @@ async function concatWavs(wavPaths, outPath) {
   await run('ffmpeg', ['-y', ...inputs, '-filter_complex', filter, '-map', '[aout]', outPath], 'concat-audio');
 }
 
-async function fetchImage(prompt) {
+async function fetchImageOnce(prompt) {
   const provider = process.env.IMAGE_PROVIDER || 'cloudflare';
+
+  if (provider === 'huggingface') {
+    const model = process.env.HF_IMAGE_MODEL || 'black-forest-labs/FLUX.1-schnell';
+    const url   = `https://router.huggingface.co/hf-inference/models/${model}`;
+    const res   = await axios.post(url,
+      { inputs: prompt, parameters: { width: 1080, height: 1920, num_inference_steps: 4 } },
+      { headers: { Authorization: `Bearer ${process.env.HF_TOKEN}`, 'Content-Type': 'application/json' }, responseType: 'arraybuffer', timeout: 120000 }
+    );
+    return Buffer.from(res.data);
+  }
 
   if (provider === 'pollinations') {
     const model = process.env.POLLINATIONS_MODEL || 'flux';
@@ -89,6 +99,21 @@ async function fetchImage(prompt) {
     { headers: { Authorization: `Bearer ${process.env.CF_API_TOKEN}`, 'Content-Type': 'application/json' }, timeout: 60000 }
   );
   return Buffer.from(res.data.result.image, 'base64');
+}
+
+async function fetchImage(prompt, retries = 4) {
+  for (let attempt = 0; attempt < retries; attempt++) {
+    try {
+      return await fetchImageOnce(prompt);
+    } catch (err) {
+      const status = err.response?.status;
+      const isRetryable = status === 429 || status === 503 || status === 500 || !status;
+      if (!isRetryable || attempt === retries - 1) throw err;
+      const delay = Math.min(8000, 2000 * Math.pow(2, attempt));
+      console.warn(`[doc] Image fetch attempt ${attempt + 1} failed (${status ?? err.code}) — retrying in ${delay / 1000}s`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
 }
 
 function escapeText(s) {
