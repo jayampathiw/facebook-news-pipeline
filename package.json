@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
-    "@supabase/supabase-js": "^2.49.0",
+    "@supabase/supabase-js": "^2.107.0",
     "axios": "^1.8.0",
     "dotenv": "^16.4.0",
     "form-data": "^4.0.5",

@@ -11,6 +11,7 @@ if (!IDS.length) {
 }
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+const storageClient = supabase;
 
 async function generateViaCloudflare(prompt) {
   const model = process.env.CF_IMAGE_MODEL || '@cf/black-forest-labs/flux-1-schnell';
@@ -44,7 +45,7 @@ async function sharpen(buf) {
 
 async function uploadToStorage(id, buf) {
   const path = `${id}.png`;
-  const { error } = await supabase.storage
+  const { error } = await storageClient.storage
     .from('article-images')
     .upload(path, buf, { contentType: 'image/png', upsert: true });
   if (error) throw new Error(`Storage upload failed: ${error.message}`);
