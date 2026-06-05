@@ -109,6 +109,46 @@ export interface ArticleStats {
   total: number;
 }
 
+export interface ContentItem {
+  id: number;
+  channel_key: string;
+  niche: string;
+  style: 'factual' | 'cinematic' | 'listicle' | 'silent';
+  language: string;
+  source_type: string;
+  source_clips: any[];
+  source_query: string | null;
+  title: string | null;
+  description: string | null;
+  narration_script: string | null;
+  ai_caption: { intro: string; question: string; cta: string } | null;
+  hashtags: string[];
+  rendered_video_url: string | null;
+  rendered_local_path: string | null;
+  rendered_at: string | null;
+  duration_sec: number | null;
+  thumbnail_url: string | null;
+  status: 'pending' | 'rendering' | 'rendered' | 'publishing' | 'posted' | 'failed' | 'blocked';
+  target_platforms: string[];
+  fb_status: string | null; fb_post_id: string | null; fb_posted_at: string | null; fb_error: string | null;
+  ig_status: string | null; ig_post_id: string | null; ig_posted_at: string | null; ig_error: string | null;
+  yt_status: string | null; yt_video_id: string | null; yt_posted_at: string | null; yt_error: string | null;
+  tt_status: string | null; tt_video_id: string | null; tt_posted_at: string | null; tt_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ContentItemStats {
+  total: number;
+  pending: number;
+  rendering: number;
+  rendered: number;
+  posting: number;
+  posted: number;
+  failed: number;
+  blocked: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class SupabaseService {
   private client: SupabaseClient;
@@ -258,6 +298,41 @@ export class SupabaseService {
 
   async insertArticle(article: Partial<Article>): Promise<void> {
     const { error } = await this.client.from('articles').insert(article);
+    if (error) throw error;
+  }
+
+  async getContentItems(): Promise<ContentItem[]> {
+    const { data, error } = await this.client
+      .from('content_items')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return (data ?? []) as ContentItem[];
+  }
+
+  async getContentItemStats(): Promise<ContentItemStats> {
+    const statuses: Array<keyof Omit<ContentItemStats, 'total'>> = ['pending', 'rendering', 'rendered', 'posting', 'posted', 'failed', 'blocked'];
+    const stats: ContentItemStats = { total: 0, pending: 0, rendering: 0, rendered: 0, posting: 0, posted: 0, failed: 0, blocked: 0 };
+    await Promise.all(statuses.map(async s => {
+      const { count } = await this.client.from('content_items').select('*', { count: 'exact', head: true }).eq('status', s);
+      (stats[s] as number) = count ?? 0;
+      stats.total += count ?? 0;
+    }));
+    return stats;
+  }
+
+  async updateContentItemStatus(id: number, status: ContentItem['status'], extra: Record<string, any> = {}): Promise<void> {
+    const { error } = await this.client.from('content_items').update({ status, ...extra }).eq('id', id);
+    if (error) throw error;
+  }
+
+  async deleteContentItem(id: number): Promise<void> {
+    const { error } = await this.client.from('content_items').delete().eq('id', id);
+    if (error) throw error;
+  }
+
+  async deleteContentItems(ids: number[]): Promise<void> {
+    const { error } = await this.client.from('content_items').delete().in('id', ids);
     if (error) throw error;
   }
 

@@ -22,5 +22,10 @@ export const routes: Routes = [
     loadComponent: () => import('./upload/upload.component').then(m => m.UploadComponent),
     canActivate: [authGuard],
   },
+  {
+    path: 'reels',
+    loadComponent: () => import('./reels/reel-list.component').then(m => m.ReelListComponent),
+    canActivate: [authGuard],
+  },
   { path: '**', redirectTo: 'articles' },
 ];
