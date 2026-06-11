@@ -430,6 +430,24 @@ export class SupabaseService {
     if (error) throw error;
   }
 
+  async queueOnThisDay(country: string, dates: string[]): Promise<{
+    results: { date: string; success: boolean; post_id?: string; events_count?: number; skipped?: boolean; error?: string }[];
+  }> {
+    const session = await this.getSession();
+    const token = session?.access_token ?? environment.supabaseAnonKey;
+    const res = await fetch(`${environment.supabaseUrl}/functions/v1/queue-on-this-day`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'apikey': environment.supabaseAnonKey,
+      },
+      body: JSON.stringify({ country, dates }),
+    });
+    if (!res.ok) throw new Error(`Queue On This Day error: ${await res.text()}`);
+    return res.json();
+  }
+
   async postOnThisDay(postId: string): Promise<{ success: boolean; fb_post_id?: string; error?: string }> {
     const session = await this.getSession();
     const token = session?.access_token ?? environment.supabaseAnonKey;

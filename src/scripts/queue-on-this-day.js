@@ -1,17 +1,20 @@
 /**
- * Queue an "On This Day" multi-photo post for IT or FR.
+ * Queue "On This Day" multi-photo posts for IT or FR.
  *
  * Usage:
- *   node src/scripts/queue-on-this-day.js IT [YYYY-MM-DD]
- *   node src/scripts/queue-on-this-day.js FR [YYYY-MM-DD]
+ *   node src/scripts/queue-on-this-day.js IT                          # today
+ *   node src/scripts/queue-on-this-day.js IT 2026-06-11               # specific date
+ *   node src/scripts/queue-on-this-day.js IT 2026-06-11 2026-06-12    # multiple dates
+ *   node src/scripts/queue-on-this-day.js IT --next 7                 # next 7 days
  *
- * Date defaults to today (UTC). The script:
- *   1. Fetches Wikipedia "On This Day" events for the date
+ * For each date the script:
+ *   1. Fetches Wikipedia "On This Day" events
  *   2. Asks Claude to pick 3-5 significant IT/FR events and write the post
  *   3. Generates one AI image per event (1080x1080 square, Cloudflare Flux)
  *   4. Uploads images to Supabase Storage
  *   5. Inserts a row into on_this_day_posts with status=pending
  *
+ * Dates already in the DB are skipped automatically.
  * After reviewing in the dashboard, post with:
  *   node src/scripts/post-on-this-day.js <post-id>
  */
@@ -22,19 +25,44 @@ import { SOURCES } from '../config/sources.js';
 import { fetchOnThisDay } from '../services/wikipedia.js';
 import { filterAndWriteOnThisDayEvents } from '../services/claude.js';
 
-const country   = (process.argv[2] || '').toUpperCase();
-const dateArg   = process.argv[3];
+// ─── Argument parsing ────────────────────────────────────────────────────────
+
+const args    = process.argv.slice(2);
+const country = (args[0] || '').toUpperCase();
 
 if (!country || !['IT', 'FR'].includes(country)) {
-  console.error('Usage: node src/scripts/queue-on-this-day.js <IT|FR> [YYYY-MM-DD]');
+  console.error('Usage: node src/scripts/queue-on-this-day.js <IT|FR> [dates...] [--next N]');
+  console.error('  IT                        → today');
+  console.error('  IT 2026-06-11             → specific date');
+  console.error('  IT 2026-06-11 2026-06-12  → multiple dates');
+  console.error('  IT --next 7               → next 7 days from today');
   process.exit(1);
 }
 
 const config = SOURCES[country];
 if (!config) { console.error(`Unknown country: ${country}`); process.exit(1); }
 
-const targetDate = dateArg ? new Date(dateArg + 'T00:00:00Z') : new Date();
-const postDate   = targetDate.toISOString().slice(0, 10); // YYYY-MM-DD
+let datesToProcess = [];
+const nextIdx = args.indexOf('--next');
+
+if (nextIdx !== -1) {
+  const n = parseInt(args[nextIdx + 1]) || 7;
+  for (let i = 0; i < n; i++) {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() + i);
+    datesToProcess.push(d.toISOString().slice(0, 10));
+  }
+} else if (args.length > 1) {
+  datesToProcess = args.slice(1).filter(a => /^\d{4}-\d{2}-\d{2}$/.test(a));
+  if (!datesToProcess.length) {
+    console.error('Date arguments must be in YYYY-MM-DD format');
+    process.exit(1);
+  }
+} else {
+  datesToProcess = [new Date().toISOString().slice(0, 10)];
+}
+
+// ─── Image generation ─────────────────────────────────────────────────────────
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
@@ -58,10 +86,10 @@ async function generateViaPollinations(prompt) {
   return Buffer.from(res.data);
 }
 
-async function generateImage(prompt) {
-  const provider = process.env.IMAGE_PROVIDER || 'cloudflare';
-  if (provider === 'pollinations') return generateViaPollinations(prompt);
-  return generateViaCloudflare(prompt);
+function generateImage(prompt) {
+  return process.env.IMAGE_PROVIDER === 'pollinations'
+    ? generateViaPollinations(prompt)
+    : generateViaCloudflare(prompt);
 }
 
 async function uploadImage(postId, index, buf) {
@@ -73,8 +101,10 @@ async function uploadImage(postId, index, buf) {
   return `${process.env.SUPABASE_URL}/storage/v1/object/public/article-images/${path}`;
 }
 
-async function run() {
-  console.log(`\n[${country}] Queuing "On This Day" for ${postDate}`);
+// ─── Core: queue one date ─────────────────────────────────────────────────────
+
+async function queueDate(postDate) {
+  console.log(`\n[${country}] ── ${postDate} ──────────────────────────`);
 
   const { data: existing } = await supabase
     .from('on_this_day_posts')
@@ -84,13 +114,15 @@ async function run() {
     .single();
 
   if (existing) {
-    console.error(`Already queued for ${country} on ${postDate} (id: ${existing.id}). Delete it first to re-queue.`);
-    process.exit(1);
+    console.log(`[${country}] Already queued (id: ${existing.id}) — skipping`);
+    return { skipped: true, postDate, postId: existing.id };
   }
+
+  const targetDate = new Date(postDate + 'T00:00:00Z');
 
   console.log(`[${country}] Fetching Wikipedia events…`);
   const rawEvents = await fetchOnThisDay(country, targetDate);
-  console.log(`[${country}] ${rawEvents.length} events found on Wikipedia`);
+  console.log(`[${country}] ${rawEvents.length} events from Wikipedia`);
 
   console.log(`[${country}] Asking Claude to select & write…`);
   const result = await filterAndWriteOnThisDayEvents(
@@ -103,9 +135,8 @@ async function run() {
   );
 
   const events = result.events || [];
-  console.log(`[${country}] ${events.length} events selected by Claude`);
+  console.log(`[${country}] ${events.length} events selected`);
 
-  // Insert row early so we have an ID for storage paths
   const title = country === 'IT'
     ? `Accadde oggi in Italia — ${targetDate.toLocaleDateString('it-IT', { day: 'numeric', month: 'long', timeZone: 'UTC' })}`
     : `Il était une fois en France — ${targetDate.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', timeZone: 'UTC' })}`;
@@ -124,17 +155,16 @@ async function run() {
     .select()
     .single();
 
-  if (insertErr) { console.error(`Insert failed: ${insertErr.message}`); process.exit(1); }
+  if (insertErr) throw new Error(`Insert failed: ${insertErr.message}`);
   const postId = inserted.id;
   console.log(`[${country}] Row inserted: ${postId}`);
 
-  // Generate images sequentially to avoid rate limits
   const updatedEvents = [];
   for (let i = 0; i < events.length; i++) {
     const ev = events[i];
-    console.log(`[${country}] Generating image ${i + 1}/${events.length}: ${ev.title}`);
+    console.log(`[${country}] Image ${i + 1}/${events.length}: ${ev.title}`);
     try {
-      const buf = await generateImage(ev.image_prompt);
+      const buf      = await generateImage(ev.image_prompt);
       const imageUrl = await uploadImage(postId, i + 1, buf);
       updatedEvents.push({ ...ev, image_url: imageUrl });
       console.log(`  ✓ ${imageUrl}`);
@@ -144,19 +174,39 @@ async function run() {
     }
   }
 
-  await supabase
-    .from('on_this_day_posts')
-    .update({ events: updatedEvents })
-    .eq('id', postId);
+  await supabase.from('on_this_day_posts').update({ events: updatedEvents }).eq('id', postId);
 
-  const successCount = updatedEvents.filter(e => e.image_url).length;
-  console.log(`\n✓ Queued "On This Day" post for ${country} — ${postDate}`);
-  console.log(`  Post ID:   ${postId}`);
-  console.log(`  Events:    ${events.length} (${successCount} with images)`);
-  console.log(`  Title:     ${title}`);
+  const ok = updatedEvents.filter(e => e.image_url).length;
+  console.log(`[${country}] ✓ Done — ${events.length} events, ${ok} images`);
   events.forEach(e => console.log(`  🏛️  [${e.year}] ${e.title}`));
-  console.log(`\nReview in the dashboard → On This Day tab, then post with:`);
-  console.log(`  node src/scripts/post-on-this-day.js ${postId}`);
+
+  return { skipped: false, postDate, postId, eventsCount: events.length, imagesOk: ok };
 }
 
-run().catch(err => { console.error('FAILED:', err.message); process.exit(1); });
+// ─── Main ─────────────────────────────────────────────────────────────────────
+
+async function run() {
+  console.log(`\n[${country}] Queuing ${datesToProcess.length} date(s): ${datesToProcess.join(', ')}`);
+
+  const summary = [];
+  for (const date of datesToProcess) {
+    try {
+      const r = await queueDate(date);
+      summary.push(r);
+    } catch (err) {
+      console.error(`[${country}] FAILED ${date}: ${err.message}`);
+      summary.push({ postDate: date, error: err.message });
+    }
+  }
+
+  console.log(`\n${'─'.repeat(50)}`);
+  console.log(`[${country}] Summary (${datesToProcess.length} date(s)):`);
+  for (const r of summary) {
+    if (r.error)   console.log(`  ✗ ${r.postDate}  ERROR: ${r.error}`);
+    else if (r.skipped) console.log(`  ↩ ${r.postDate}  already queued (${r.postId})`);
+    else           console.log(`  ✓ ${r.postDate}  ${r.eventsCount} events, ${r.imagesOk} images — id: ${r.postId}`);
+  }
+  console.log(`\nReview in the dashboard → On This Day tab.`);
+}
+
+run().catch(err => { console.error('FATAL:', err.message); process.exit(1); });
