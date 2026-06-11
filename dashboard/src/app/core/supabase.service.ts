@@ -430,6 +430,25 @@ export class SupabaseService {
     if (error) throw error;
   }
 
+  async updateOnThisDayEvents(postId: string, events: OnThisDayEvent[]): Promise<void> {
+    const { error } = await this.client
+      .from('on_this_day_posts')
+      .update({ events })
+      .eq('id', postId);
+    if (error) throw error;
+  }
+
+  async uploadOnThisDayEventImage(postId: string, eventIndex: number, dataUrl: string): Promise<string> {
+    const base64 = dataUrl.split(',')[1];
+    const bytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+    const path = `on-this-day/${postId}/event-${eventIndex + 1}.png`;
+    const { error } = await this.client.storage
+      .from('article-images')
+      .upload(path, bytes, { contentType: 'image/png', upsert: true });
+    if (error) throw error;
+    return `${environment.supabaseUrl}/storage/v1/object/public/article-images/${path}`;
+  }
+
   async queueOnThisDay(country: string, dates: string[]): Promise<{
     results: { date: string; success: boolean; post_id?: string; events_count?: number; skipped?: boolean; error?: string }[];
   }> {
