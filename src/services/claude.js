@@ -711,3 +711,65 @@ Add a subtle gradient overlay beneath the text for legibility.
 Overlay the text above in large white Anton font at the upper position, semi-transparent at 80% opacity, integrated with ${lightingContext}.
 Add ${watermarkFile} watermark, bottom-right, small, 70% opacity.`;
 }
+
+// Selects the 3-5 most significant historical events for today's date (from Wikipedia)
+// and writes a full Facebook post package + per-event image prompts.
+export async function filterAndWriteOnThisDayEvents(rawEvents, country, language, pageName, pageHashtag, date = new Date()) {
+  const client = getClient();
+
+  const day   = date.toLocaleDateString(country === 'IT' ? 'it-IT' : 'fr-FR', { day: 'numeric', month: 'long', timeZone: 'UTC' });
+  const intro_header = country === 'IT'
+    ? `📅 Accadde oggi in Italia — ${day}`
+    : `📅 Il était une fois en France — ${day}`;
+  const cta_line = country === 'IT'
+    ? `👉 Segui ${pageName} per scoprire la storia italiana — ogni giorno.\n\n${pageHashtag}`
+    : `👉 Suivez ${pageName} pour découvrir l'histoire française — chaque jour.\n\n${pageHashtag}`;
+  const question_guide = country === 'IT'
+    ? 'Una domanda chiusa che invita a commentare (es: "Sapevi di questo momento storico?", "Quale evento ti ha sorpreso di più?")'
+    : 'Une question fermée qui invite à commenter (ex: "Le saviez-vous ?", "Quel événement vous a le plus surpris ?")';
+
+  const eventList = rawEvents.slice(0, 60).map(e => `[${e.year}] ${e.text}`).join('\n');
+
+  const prompt = `You are a social media editor for "${pageName}", a Facebook page dedicated to ${country === 'IT' ? 'Italian' : 'French'} national pride and history (35+ diaspora audience).
+
+Today is ${day}. Below are historical events that occurred on this date, sourced from ${country === 'IT' ? 'Italian' : 'French'} Wikipedia.
+
+YOUR TASKS:
+1. Select the 3-5 most significant and emotionally engaging events for this page (Italian/French history, culture, sport, science, art, food — no political controversy, no war crimes, no living political figures)
+2. For each event: write a 2-3 sentence celebratory summary in ${language}
+3. For each event: write a cinematic AI image prompt in English (photojournalistic, no faces, no text, dramatic lighting, square 1:1 composition)
+4. Write the Facebook post:
+   - intro: Start with "${intro_header}" on its own line, then for each event "🏛️ [Year]: [Short Title in ${language}]\\n[summary]", each block separated by \\n\\n
+   - question: ${question_guide}
+   - cta: "${cta_line}"
+   - hashtags: 3-5 hashtags in ${language} context including ${pageHashtag}
+
+EVENTS FROM WIKIPEDIA (${rawEvents.length} total):
+${eventList}
+
+Return ONLY valid JSON, no markdown, starting with {:
+{
+  "intro": "...",
+  "question": "...",
+  "cta": "...",
+  "hashtags": ["#...", "..."],
+  "events": [
+    {"year": 1889, "title": "Short title in ${language}", "summary": "2-3 celebratory sentences.", "image_prompt": "RAW photograph, Sony A7R V, 35mm f/2.8, square 1:1 composition — [specific scene, no faces, no text, photojournalistic style, exact lighting]"}
+  ]
+}`;
+
+  const raw = await client.messages.create({
+    model: MODEL,
+    max_tokens: 2000,
+    messages: [{ role: 'user', content: prompt }],
+  });
+
+  const response = parseResponse(raw);
+  try {
+    const text = response.content[0].text.trim();
+    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    return JSON.parse(jsonMatch ? jsonMatch[0] : text);
+  } catch {
+    throw new Error(`Claude returned invalid JSON for On This Day: ${response.content[0].text.slice(0, 200)}`);
+  }
+}

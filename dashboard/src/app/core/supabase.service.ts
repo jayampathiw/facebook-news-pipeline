@@ -109,6 +109,28 @@ export interface ArticleStats {
   total: number;
 }
 
+export interface OnThisDayEvent {
+  year: number;
+  title: string;
+  summary: string;
+  image_prompt: string;
+  image_url: string | null;
+}
+
+export interface OnThisDayPost {
+  id: string;
+  country: string;
+  post_date: string;
+  title: string;
+  events: OnThisDayEvent[];
+  ai_caption: { intro: string; question: string; cta: string } | null;
+  hashtags: string[];
+  status: 'pending' | 'posted' | 'failed';
+  fb_post_id: string | null;
+  posted_at: string | null;
+  created_at: string;
+}
+
 export interface ContentItem {
   id: number;
   channel_key: string;
@@ -389,6 +411,38 @@ export class SupabaseService {
       const text = await res.text();
       throw new Error(`Edge Function error: ${text}`);
     }
+    return res.json();
+  }
+
+  async getOnThisDayPosts(country?: string): Promise<OnThisDayPost[]> {
+    let q = this.client
+      .from('on_this_day_posts')
+      .select('*')
+      .order('post_date', { ascending: false });
+    if (country) q = q.eq('country', country);
+    const { data, error } = await q;
+    if (error) throw error;
+    return (data ?? []) as OnThisDayPost[];
+  }
+
+  async deleteOnThisDayPost(id: string): Promise<void> {
+    const { error } = await this.client.from('on_this_day_posts').delete().eq('id', id);
+    if (error) throw error;
+  }
+
+  async postOnThisDay(postId: string): Promise<{ success: boolean; fb_post_id?: string; error?: string }> {
+    const session = await this.getSession();
+    const token = session?.access_token ?? environment.supabaseAnonKey;
+    const res = await fetch(`${environment.supabaseUrl}/functions/v1/post-on-this-day`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'apikey': environment.supabaseAnonKey,
+      },
+      body: JSON.stringify({ post_id: postId }),
+    });
+    if (!res.ok) throw new Error(`Post On This Day error: ${await res.text()}`);
     return res.json();
   }
 }

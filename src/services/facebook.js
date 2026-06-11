@@ -116,6 +116,35 @@ export async function postVideoToFacebook(videoPath, captionObj, article, countr
   return res.data.id;
 }
 
+// Posts multiple images as a single Facebook multi-photo post.
+// imageUrls: array of public URLs already stored in Supabase Storage.
+// Each image is first registered as an unpublished photo, then all are
+// attached to a single feed post in one call.
+export async function postMultiPhotoToFacebook(imageUrls, captionObj, country) {
+  const pageId = process.env[`FB_PAGE_ID_${country}`];
+  const token  = process.env[`FB_ACCESS_TOKEN_${country}`];
+  if (!pageId || !token) throw new Error(`Missing Facebook credentials for country: ${country}`);
+
+  const { intro, question, cta } = captionObj;
+  const message = [intro, question, cta].filter(Boolean).join('\n\n');
+
+  const photoIds = [];
+  for (const url of imageUrls) {
+    const res = await axios.post(`${FB_BASE}/${pageId}/photos`, null, {
+      params: { url, published: false, access_token: token },
+    });
+    photoIds.push(res.data.id);
+  }
+
+  const feedRes = await axios.post(`${FB_BASE}/${pageId}/feed`, {
+    message,
+    attached_media: photoIds.map(id => ({ media_fbid: id })),
+    access_token: token,
+  });
+
+  return feedRes.data.id;
+}
+
 export async function deletePost(postId, country) {
   const token = process.env[`FB_ACCESS_TOKEN_${country}`];
   if (!token) throw new Error(`Missing Facebook token for country: ${country}`);

@@ -27,5 +27,10 @@ export const routes: Routes = [
     loadComponent: () => import('./reels/reel-list.component').then(m => m.ReelListComponent),
     canActivate: [authGuard],
   },
+  {
+    path: 'on-this-day',
+    loadComponent: () => import('./on-this-day/on-this-day.component').then(m => m.OnThisDayComponent),
+    canActivate: [authGuard],
+  },
   { path: '**', redirectTo: 'articles' },
 ];
