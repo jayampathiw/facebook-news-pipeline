@@ -172,6 +172,10 @@ import { OnThisDayPost, SupabaseService } from '../core/supabase.service';
                         @if (ev.image_url) {
                           <img [src]="ev.image_url" alt="{{ ev.title }}"
                                style="width:110px;height:110px;object-fit:cover;border-radius:6px;display:block;" />
+                          <!-- Download button overlay -->
+                          <a [href]="ev.image_url" [download]="ev.year + '-' + post.country + '.png'" target="_blank"
+                             style="position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:4px;background:rgba(0,0,0,.55);display:flex;align-items:center;justify-content:center;color:#fff;font-size:11px;text-decoration:none;cursor:pointer;"
+                             title="Download image">⬇</a>
                         } @else {
                           <div style="width:110px;height:110px;border-radius:6px;background:var(--ink-raised);border:1px dashed var(--ink-border);display:flex;align-items:center;justify-content:center;color:var(--ink-text-3);font-size:10px;text-align:center;padding:6px;box-sizing:border-box;">
                             No image<br/>run CLI
@@ -198,9 +202,23 @@ import { OnThisDayPost, SupabaseService } from '../core/supabase.service';
                   }
                 </div>
 
-                <!-- Caption preview -->
+                <!-- Caption + actions -->
                 @if (post.ai_caption?.intro) {
-                  <div style="margin:0 16px 12px;padding:10px 12px;background:var(--ink-raised);border-radius:6px;font-size:12px;color:var(--ink-text-2);white-space:pre-wrap;max-height:100px;overflow-y:auto;line-height:1.5;">{{ post.ai_caption!.intro }}</div>
+                  <div style="margin:0 16px 12px;">
+                    <!-- Action row -->
+                    <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap;">
+                      <button class="btn-ink" style="height:26px;padding:0 10px;font-size:11px;gap:4px;" (click)="copyCaption(post)" title="Copy full caption to clipboard">
+                        {{ copied() === post.id ? '✓ Copied' : '⎘ Copy caption' }}
+                      </button>
+                      @if (imageCount(post) > 0) {
+                        <button class="btn-ink" style="height:26px;padding:0 10px;font-size:11px;gap:4px;" (click)="downloadAll(post)" title="Open all images in new tabs">
+                          ⬇ Download all images ({{ imageCount(post) }})
+                        </button>
+                      }
+                    </div>
+                    <!-- Full caption text -->
+                    <div style="padding:10px 12px;background:var(--ink-raised);border-radius:6px;font-size:12px;color:var(--ink-text-2);white-space:pre-wrap;max-height:160px;overflow-y:auto;line-height:1.6;">{{ fullCaption(post) }}</div>
+                  </div>
                 }
 
                 <!-- CLI hint for missing images -->
@@ -224,6 +242,7 @@ export class OnThisDayComponent implements OnInit {
   loading    = signal(true);
   generating = signal(false);
   posting    = signal<string | null>(null);
+  copied     = signal<string | null>(null);
   toast      = signal<string | null>(null);
   toastOk    = signal(true);
 
@@ -328,6 +347,37 @@ export class OnThisDayComponent implements OnInit {
 
   imageCount(post: OnThisDayPost) {
     return post.events.filter(e => e.image_url).length;
+  }
+
+  fullCaption(post: OnThisDayPost): string {
+    const c = post.ai_caption;
+    if (!c) return '';
+    return [c['intro'], c['question'], c['cta']].filter(Boolean).join('\n\n');
+  }
+
+  async copyCaption(post: OnThisDayPost) {
+    try {
+      await navigator.clipboard.writeText(this.fullCaption(post));
+      this.copied.set(post.id);
+      setTimeout(() => this.copied.set(null), 2500);
+    } catch {
+      this.showToast('Could not copy — try selecting the text manually', false);
+    }
+  }
+
+  downloadAll(post: OnThisDayPost) {
+    post.events
+      .filter(e => e.image_url)
+      .forEach((ev, i) => {
+        const a = document.createElement('a');
+        a.href = ev.image_url!;
+        a.download = `${post.post_date}-${post.country}-${ev.year}.png`;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      });
   }
 
   openUrl(url: string) {
