@@ -165,9 +165,6 @@ export async function compositeReel({ article, bgImagePath, wavPath, srtPath, mu
   const totalDur   = audioDur + 2; // 2s tail after voice ends
   const fadeOutAt  = Math.max(0, totalDur - 2);
 
-  // Escape subtitle path for FFmpeg
-  const srtEscaped = srtPath.replace(/\\/g, '/').replace(/:/g, '\\:');
-
   // Build drawtext filter — headline at top, fades in at 0.5s
   const drawtextFilter = [
     `fontfile=${FONT_PATH}`,
@@ -182,14 +179,18 @@ export async function compositeReel({ article, bgImagePath, wavPath, srtPath, mu
     'alpha=\'if(lt(t,0.5),0,if(lt(t,1),(t-0.5)/0.5,1))\'',
   ].join(':');
 
-  // Subtitle style — FontSize in ASS virtual-pixel units (default PlayRes 384×288 scaled to video)
-  const subStyle = 'FontName=Arial,FontSize=13,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,Outline=2,MarginV=80,MarginL=40,MarginR=40';
+  const videoFilters = srtPath
+    ? (() => {
+        const srtEscaped = srtPath.replace(/\\/g, '/').replace(/:/g, '\\:');
+        const subStyle = 'FontName=Arial,FontSize=13,PrimaryColour=&H00FFFFFF,OutlineColour=&H00000000,Outline=2,MarginV=80,MarginL=40,MarginR=40';
+        return `drawtext=${drawtextFilter},subtitles='${srtEscaped}':force_style='${subStyle}'`;
+      })()
+    : `drawtext=${drawtextFilter}`;
 
   const filterComplex = [
-    // Video: scale to 1080x1920 + headline text + subtitle burn-in + logo overlay
+    // Video: scale to 1080x1920 + headline text + optional subtitle burn-in + logo overlay
     `[0:v]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1,`,
-    `drawtext=${drawtextFilter},`,
-    `subtitles='${srtEscaped}':force_style='${subStyle}'`,
+    `${videoFilters}`,
     `[vtext];`,
     // Scale watermark to 100px wide before overlay
     `[2:v]scale=100:-1[logo];`,

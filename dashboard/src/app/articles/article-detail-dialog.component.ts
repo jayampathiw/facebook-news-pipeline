@@ -117,11 +117,21 @@ import { Article, SupabaseService } from '../core/supabase.service';
           </div>
           <div style="border-top:1px solid var(--ink-border);"></div>
           <div>
-            <p class="section-label">Source URL</p>
-            <a [href]="article.url" target="_blank" rel="noopener"
-               style="font-size:13px;color:var(--ink-brand);text-decoration:none;display:inline-flex;align-items:center;gap:4px;">
-              Open article <span style="opacity:.6;">↗</span>
-            </a>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <p class="section-label" style="margin-bottom:0;">Source URL</p>
+              @if (article.url) {
+                <button class="btn-ink" style="height:26px;padding:0 10px;font-size:11px;" (click)="copy(article.url)">Copy</button>
+              }
+            </div>
+            @if (article.url) {
+              <a style="font-size:13px;color:var(--ink-brand);text-decoration:none;display:inline-flex;align-items:center;gap:4px;cursor:pointer;"
+                 (click)="openUrl(article.url)">
+                Open article <span style="opacity:.6;">↗</span>
+              </a>
+              <p style="font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-text-3);margin-top:4px;word-break:break-all;">{{ article.url }}</p>
+            } @else {
+              <p style="font-size:13px;color:var(--ink-text-3);">No source URL available</p>
+            }
           </div>
           @if (article.fb_post_id) {
             <div style="border-top:1px solid var(--ink-border);"></div>
@@ -347,21 +357,22 @@ import { Article, SupabaseService } from '../core/supabase.service';
                 Regenerate Prompt
               </button>
             </div>
-            @if (article.image_headline) {
-              <div>
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-                  <p class="section-label" style="margin-bottom:0;">
-                    Image Headline
-                    <span style="font-weight:400;text-transform:none;letter-spacing:normal;color:var(--ink-text-3);">(max 6 words)</span>
-                  </p>
+            <div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+                <p class="section-label" style="margin-bottom:0;">
+                  Image Headline
+                  <span style="font-weight:400;text-transform:none;letter-spacing:normal;color:var(--ink-text-3);">(max 6 words)</span>
+                </p>
+                @if (article.image_headline) {
                   <button class="btn-ink" style="height:26px;padding:0 10px;font-size:11px;" (click)="copy(article.image_headline!)">Copy</button>
-                </div>
-                <textarea class="ink-input" rows="2"
-                          style="width:100%;resize:vertical;font-size:15px;font-weight:700;letter-spacing:.02em;box-sizing:border-box;"
-                          [value]="article.image_headline ?? ''"
-                          (blur)="saveImageField('image_headline', $any($event.target).value)"></textarea>
+                }
               </div>
-            }
+              <textarea class="ink-input" rows="2"
+                        placeholder="Type a short headline (max 6 words)…"
+                        style="width:100%;resize:vertical;font-size:15px;font-weight:700;letter-spacing:.02em;box-sizing:border-box;"
+                        [value]="article.image_headline ?? ''"
+                        (blur)="saveImageField('image_headline', $any($event.target).value)"></textarea>
+            </div>
             <div>
               <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
                 <p class="section-label" style="margin-bottom:0;">Raw Prompt</p>
@@ -650,6 +661,10 @@ export class ArticleDetailComponent implements OnDestroy {
     }
   }
 
+  openUrl(url: string) {
+    window.open(url, '_blank', 'noopener,noreferrer');
+  }
+
   async saveEditorNotes(value: string) {
     if (value === (this.article.editor_notes ?? '')) return;
     try {
@@ -749,14 +764,25 @@ export class ArticleDetailComponent implements OnDestroy {
         this.loadImg(this.logoPath()).catch(() => null as HTMLImageElement | null),
       ]);
 
-      const w = baseImg.naturalWidth || 1080;
-      const h = baseImg.naturalHeight || 1080;
+      // Always output 1:1 square — Facebook feed posts require it
+      const TARGET = 1080;
+      const w = TARGET;
+      const h = TARGET;
 
       const canvas = document.createElement('canvas');
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext('2d')!;
-      ctx.drawImage(baseImg, 0, 0, w, h);
+
+      // Center-crop source image to fill the square (cover behaviour)
+      const srcW = baseImg.naturalWidth || TARGET;
+      const srcH = baseImg.naturalHeight || TARGET;
+      const scale = Math.max(TARGET / srcW, TARGET / srcH);
+      const drawW = srcW * scale;
+      const drawH = srcH * scale;
+      const offsetX = (TARGET - drawW) / 2;
+      const offsetY = (TARGET - drawH) / 2;
+      ctx.drawImage(baseImg, offsetX, offsetY, drawW, drawH);
 
       const headline = this.article.image_headline ?? '';
       if (headline) {
