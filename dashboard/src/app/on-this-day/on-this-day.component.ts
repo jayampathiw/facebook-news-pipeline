@@ -588,17 +588,25 @@ export class OnThisDayComponent implements OnInit {
     }
   }
 
-  downloadAll(post: OnThisDayPost) {
-    post.events.filter(e => e.image_url).forEach(ev => {
-      const a = document.createElement('a');
-      a.href = ev.image_url!;
-      a.download = `${post.post_date}-${post.country}-${ev.year}.png`;
-      a.target = '_blank';
-      a.rel = 'noopener';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    });
+  async downloadAll(post: OnThisDayPost) {
+    const events = post.events.filter(e => e.image_url);
+    for (const ev of events) {
+      try {
+        const res = await fetch(ev.image_url!);
+        const blob = await res.blob();
+        const objectUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = objectUrl;
+        a.download = `${post.post_date}-${post.country}-${ev.year}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(objectUrl);
+      } catch {
+        window.open(ev.image_url!, '_blank', 'noopener,noreferrer');
+      }
+      await new Promise(r => setTimeout(r, 300));
+    }
   }
 
   imageCount(post: OnThisDayPost) {

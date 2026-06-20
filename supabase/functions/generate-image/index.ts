@@ -13,6 +13,93 @@ function json(body: unknown, status = 200) {
   });
 }
 
+// Provider 1 — fal.ai Recraft V3 (primary)
+async function generateViaFal(prompt: string): Promise<Uint8Array> {
+  const falKey = Deno.env.get('FAL_KEY');
+  if (!falKey) throw new Error('FAL_KEY not configured');
+
+  const res = await fetch('https://fal.run/fal-ai/recraft-v3', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Key ${falKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      prompt,
+      image_size: { width: 1080, height: 1920 },
+      style: 'digital_illustration',
+    }),
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(`fal.ai ${res.status}: ${JSON.stringify(err)}`);
+  }
+
+  const data = await res.json();
+  const imageUrl: string = data.images?.[0]?.url;
+  if (!imageUrl) throw new Error('No image URL in fal.ai response');
+
+  // fal.ai returns a CDN URL — fetch bytes before they expire
+  const imgRes = await fetch(imageUrl);
+  if (!imgRes.ok) throw new Error(`Failed to fetch fal.ai image: ${imgRes.status}`);
+  return new Uint8Array(await imgRes.arrayBuffer());
+}
+
+// Provider 2 — Cloudflare Workers AI Flux 2 Klein 4B (fallback, ~10k neurons/day free)
+async function generateViaCloudflare(prompt: string): Promise<Uint8Array> {
+  const cfUrl = `https://api.cloudflare.com/client/v4/accounts/${Deno.env.get('CF_ACCOUNT_ID')}/ai/run/@cf/black-forest-labs/flux-2-klein-4b`;
+  const form = new FormData();
+  form.append('prompt', prompt);
+  form.append('num_steps', '8');
+  form.append('width', '1080');
+  form.append('height', '1920');
+
+  const res = await fetch(cfUrl, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${Deno.env.get('CF_API_TOKEN')}` },
+    body: form,
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(`Cloudflare ${res.status}: ${JSON.stringify(err)}`);
+  }
+
+  const data = await res.json();
+  const base64Image: string = data.result?.image;
+  if (!base64Image) throw new Error('No image in Cloudflare response');
+  return Uint8Array.from(atob(base64Image), (c) => c.charCodeAt(0));
+}
+
+// Provider 3 — Google AI Studio Imagen (last resort)
+async function generateViaGoogle(prompt: string): Promise<Uint8Array> {
+  const googleKey = Deno.env.get('GOOGLE_AI_KEY');
+  if (!googleKey) throw new Error('GOOGLE_AI_KEY not configured');
+
+  const res = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${googleKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        instances: [{ prompt }],
+        parameters: { sampleCount: 1, aspectRatio: '9:16' },
+      }),
+    },
+  );
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(`Google ${res.status}: ${JSON.stringify(err)}`);
+  }
+
+  const data = await res.json();
+  const base64Image: string = data.predictions?.[0]?.bytesBase64Encoded;
+  if (!base64Image) throw new Error('No image in Google response');
+  return Uint8Array.from(atob(base64Image), (c) => c.charCodeAt(0));
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -34,28 +121,39 @@ Deno.serve(async (req) => {
     if (fetchErr || !article) return json({ error: 'Article not found' }, 404);
     if (!article.image_prompt) return json({ error: 'No image_prompt — generate caption first' }, 400);
 
-    // Generate image via Cloudflare Flux 1 Schnell (returns base64 JSON, no expiry)
-    const cfUrl = `https://api.cloudflare.com/client/v4/accounts/${Deno.env.get('CF_ACCOUNT_ID')}/ai/run/@cf/black-forest-labs/flux-1-schnell`;
-    const cfRes = await fetch(cfUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${Deno.env.get('CF_API_TOKEN')}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ prompt: article.image_prompt, num_steps: 8, width: 1080, height: 1920 }),
-    });
+    // Try providers in priority order — first success wins
+    let imageBytes: Uint8Array | null = null;
+    let provider = '';
+    const errors: string[] = [];
 
-    if (!cfRes.ok) {
-      const err = await cfRes.json().catch(() => ({}));
-      throw new Error(`Cloudflare error ${cfRes.status}: ${JSON.stringify(err)}`);
+    try {
+      imageBytes = await generateViaCloudflare(article.image_prompt);
+      provider = 'cloudflare';
+    } catch (err) {
+      errors.push(`cloudflare: ${err instanceof Error ? err.message : String(err)}`);
     }
 
-    const cfData = await cfRes.json();
-    const base64Image: string = cfData.result?.image;
-    if (!base64Image) throw new Error('No image in Cloudflare response');
+    if (!imageBytes) {
+      try {
+        imageBytes = await generateViaGoogle(article.image_prompt);
+        provider = 'google';
+      } catch (err) {
+        errors.push(`google: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
 
-    // Decode base64 → bytes
-    const imageBytes = Uint8Array.from(atob(base64Image), (c) => c.charCodeAt(0));
+    if (!imageBytes) {
+      try {
+        imageBytes = await generateViaFal(article.image_prompt);
+        provider = 'fal.ai';
+      } catch (err) {
+        errors.push(`fal.ai: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+
+    if (!imageBytes) {
+      throw new Error(`All image providers failed — ${errors.join(' | ')}`);
+    }
 
     // Upload to Supabase Storage (upsert so regeneration overwrites the old file)
     const storagePath = `${article_id}.png`;
@@ -75,7 +173,7 @@ Deno.serve(async (req) => {
 
     if (updateErr) throw new Error(`DB update failed: ${updateErr.message}`);
 
-    return json({ url: imageUrl });
+    return json({ url: imageUrl, provider, ...(errors.length > 0 ? { fallback_errors: errors } : {}) });
   } catch (err) {
     return json({ error: err instanceof Error ? err.message : String(err) }, 500);
   }
