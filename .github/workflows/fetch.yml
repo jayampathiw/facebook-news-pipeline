@@ -31,14 +31,15 @@ jobs:
         working-directory: content
         run: npm run news
         env:
-          SUPABASE_URL:       ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY:       ${{ secrets.SUPABASE_KEY }}
-          NEWSAPI_KEY:        ${{ secrets.NEWSAPI_KEY }}
-          ANTHROPIC_KEY:      ${{ secrets.ANTHROPIC_KEY }}
-          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
-          ANTHROPIC_MODEL:    ${{ secrets.ANTHROPIC_MODEL }}
-          FAL_KEY:            ${{ secrets.FAL_KEY }}
-          FB_PAGE_ID_FR:      ${{ secrets.FB_PAGE_ID_FR }}
-          FB_ACCESS_TOKEN_FR: ${{ secrets.FB_ACCESS_TOKEN_FR }}
-          FB_PAGE_ID_IT:      ${{ secrets.FB_PAGE_ID_IT }}
-          FB_ACCESS_TOKEN_IT: ${{ secrets.FB_ACCESS_TOKEN_IT }}
+          SUPABASE_URL:             ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:             ${{ secrets.SUPABASE_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEWSAPI_KEY:              ${{ secrets.NEWSAPI_KEY }}
+          ANTHROPIC_KEY:            ${{ secrets.ANTHROPIC_KEY }}
+          ANTHROPIC_BASE_URL:       ${{ secrets.ANTHROPIC_BASE_URL }}
+          ANTHROPIC_MODEL:          ${{ secrets.ANTHROPIC_MODEL }}
+          FAL_KEY:                  ${{ secrets.FAL_KEY }}
+          FB_PAGE_ID_FR:            ${{ secrets.FB_PAGE_ID_FR }}
+          FB_ACCESS_TOKEN_FR:       ${{ secrets.FB_ACCESS_TOKEN_FR }}
+          FB_PAGE_ID_IT:            ${{ secrets.FB_PAGE_ID_IT }}
+          FB_ACCESS_TOKEN_IT:       ${{ secrets.FB_ACCESS_TOKEN_IT }}

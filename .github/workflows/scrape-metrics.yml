@@ -31,7 +31,9 @@ jobs:
         working-directory: content
         run: npm run scrape-metrics
         env:
-          SUPABASE_URL:       ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY:       ${{ secrets.SUPABASE_KEY }}
-          FB_ACCESS_TOKEN_FR: ${{ secrets.FB_ACCESS_TOKEN_FR }}
-          FB_ACCESS_TOKEN_IT: ${{ secrets.FB_ACCESS_TOKEN_IT }}
+          SUPABASE_URL:             ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:             ${{ secrets.SUPABASE_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FAL_KEY:                  ${{ secrets.FAL_KEY }}
+          FB_ACCESS_TOKEN_FR:       ${{ secrets.FB_ACCESS_TOKEN_FR }}
+          FB_ACCESS_TOKEN_IT:       ${{ secrets.FB_ACCESS_TOKEN_IT }}
