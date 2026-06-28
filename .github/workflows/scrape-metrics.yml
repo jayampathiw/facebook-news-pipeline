@@ -2,42 +2,36 @@ name: Scrape Post Metrics
 
 on:
   schedule:
-    - cron: '15 * * * *'   # 15 past every hour (offset from pipeline fetch at :00)
-  workflow_dispatch:        # manual trigger from GitHub Actions UI
+    - cron: '15 * * * *'
+  workflow_dispatch:
 
 jobs:
   scrape:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout
+      - name: Checkout signal-studio
         uses: actions/checkout@v4
+        with:
+          repository: jayampathiw/signal-studio
+          ssh-key: ${{ secrets.SIGNAL_STUDIO_DEPLOY_KEY }}
+          path: content
 
-      - name: Setup Node.js
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: '22'
           cache: 'npm'
+          cache-dependency-path: content/package-lock.json
 
       - name: Install dependencies
+        working-directory: content
         run: npm ci
 
-      - name: Check required secrets
-        run: |
-          if [ -z "$SUPABASE_URL" ]; then echo "ERROR: SUPABASE_URL secret not set"; exit 1; fi
-          if [ -z "$SUPABASE_KEY" ]; then echo "ERROR: SUPABASE_KEY secret not set"; exit 1; fi
-          echo "Required secrets present"
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-
       - name: Scrape post metrics
-        run: node src/scrapers/post-metrics.js
+        working-directory: content
+        run: npm run scrape-metrics
         env:
           SUPABASE_URL:       ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY:       ${{ secrets.SUPABASE_KEY }}
           FB_ACCESS_TOKEN_FR: ${{ secrets.FB_ACCESS_TOKEN_FR }}
           FB_ACCESS_TOKEN_IT: ${{ secrets.FB_ACCESS_TOKEN_IT }}
-
-      - name: Log completion
-        run: echo "Metrics scrape completed at $(date -u)"

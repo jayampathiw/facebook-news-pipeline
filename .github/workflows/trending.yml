@@ -2,28 +2,41 @@ name: Trending Content Discovery
 
 on:
   schedule:
-    - cron: '0 5 * * *'   # Daily 05:00 UTC = 07:00 CEST (before first FR/IT posting slot)
+    - cron: '0 5 * * *'
   workflow_dispatch:
 
 jobs:
   trending:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout signal-studio
+        uses: actions/checkout@v4
         with:
-          node-version: '24'
-          cache: 'npm'
-      - run: npm ci
+          repository: jayampathiw/signal-studio
+          ssh-key: ${{ secrets.SIGNAL_STUDIO_DEPLOY_KEY }}
+          path: content
 
-      - name: Google Trends → articles
-        run: node src/scrapers/google-trends.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+          cache-dependency-path: content/package-lock.json
+
+      - name: Install dependencies
+        working-directory: content
+        run: npm ci
+
+      - name: Google Trends scraper
+        working-directory: content
+        run: npm run google-trends
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
 
-      - name: Competitor FB pages → trending signals + articles
-        run: node src/scrapers/trending-pages.js
+      - name: Competitor FB pages scraper
+        working-directory: content
+        run: npm run trending-pages
         env:
           SUPABASE_URL:        ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY:        ${{ secrets.SUPABASE_KEY }}
