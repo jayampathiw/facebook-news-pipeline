@@ -2,21 +2,36 @@ name: Recompute Publish Scores
 
 on:
   schedule:
-    - cron: '30 * * * *'   # every hour at :30
+    - cron: '30 * * * *'
   workflow_dispatch:
 
 jobs:
   recompute:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - name: Checkout signal-studio
+        uses: actions/checkout@v4
         with:
-          node-version: '24'
+          repository: jayampathiw/signal-studio
+          ssh-key: ${{ secrets.SIGNAL_STUDIO_DEPLOY_KEY }}
+          path: content
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
           cache: 'npm'
-      - run: npm ci
+          cache-dependency-path: content/package-lock.json
+
+      - name: Install dependencies
+        working-directory: content
+        run: npm ci
+
       - name: Recompute publish scores
-        run: node src/scripts/recompute-scores.js
+        working-directory: content
+        run: npm run recompute-scores
         env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          SUPABASE_URL:             ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY:             ${{ secrets.SUPABASE_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FAL_KEY:                  ${{ secrets.FAL_KEY }}
