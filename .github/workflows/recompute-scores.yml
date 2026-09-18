@@ -8,6 +8,7 @@ on:
 jobs:
   recompute:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Checkout signal-studio-workspace
         uses: actions/checkout@v4
