@@ -9,26 +9,44 @@ jobs:
   fetch:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout signal-studio
+      - name: Checkout signal-studio-workspace
+        uses: actions/checkout@v4
+        with:
+          repository: jayampathiw/signal-studio-workspace
+          ssh-key: ${{ secrets.SIGNAL_STUDIO_WORKSPACE_DEPLOY_KEY }}
+          path: workspace
+
+      - name: Checkout signal-studio (engine packages)
         uses: actions/checkout@v4
         with:
           repository: jayampathiw/signal-studio
           ssh-key: ${{ secrets.SIGNAL_STUDIO_DEPLOY_KEY }}
-          path: content
+          path: workspace/engine
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: content/package-lock.json
+
+      - name: Un-pnpm-ify engine packages for npm workspaces
+        # apps/news lives in signal-studio-workspace (plain npm workspaces),
+        # but the engine packages it links against are pnpm-managed there and
+        # use pnpm's "workspace:*" protocol for their own internal cross-deps
+        # (e.g. packages/ai -> packages/config) — npm can't parse that. This
+        # only touches the ephemeral checkout in this runner, never the real
+        # repos.
+        run: find workspace/engine/packages -name package.json -exec sed -i 's/"workspace:\*"/"*"/g' {} +
 
       - name: Install dependencies
-        working-directory: content
-        run: npm ci
+        working-directory: workspace
+        # No package-lock.json is committed (see signal-studio-workspace's
+        # package.json history for why — a reproducible npm 11 bug
+        # re-validating this workspace's lockfile shape). Fresh install each
+        # run instead of `npm ci`.
+        run: npm install
 
       - name: Run pipeline
-        working-directory: content
+        working-directory: workspace
         run: npm run news
         env:
           SUPABASE_URL:             ${{ secrets.SUPABASE_URL }}
